@@ -1,0 +1,4747 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Календарь</title>
+    <meta name="description" content="Генеалогический календарь: семейный календарь (юлианский/григорианский), даты рождения и памяти, напоминания, сканы архивов.">
+    <style>
+        :root {
+            --bg: #ffffff;
+            --bg-2: #f8f9fa;
+            --text: #000000;
+            --muted: #6c757d;
+            --primary: #007bff;
+            --primary-2: #0056b3;
+            --accent: #17a2b8;
+            --card: #ffffff;
+            --line: #dee2e6;
+            --success: #28a745;
+            --warning: #ffc107;
+            --danger: #dc3545;
+        }
+        
+        /* Стили для красивого модального окна */
+        .person-header {
+            text-align: center;
+            border-bottom: 2px solid var(--line);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .person-header h2 {
+            margin: 0 0 5px 0;
+            color: var(--primary);
+            font-size: 1.5em;
+        }
+        
+        .person-id {
+            color: var(--muted);
+            font-size: 0.9em;
+            background: var(--bg-2);
+            padding: 3px 8px;
+            border-radius: 12px;
+        }
+        
+        .person-info {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .info-section {
+            margin-bottom: 20px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 15px;
+            background: var(--bg-2);
+        }
+        
+        .info-section h3 {
+            margin: 0 0 12px 0;
+            color: var(--primary);
+            font-size: 1.1em;
+            border-bottom: 1px solid var(--line);
+            padding-bottom: 5px;
+        }
+        
+        .info-grid {
+            display: grid;
+            gap: 8px;
+        }
+        
+        .info-item {
+            display: grid;
+            grid-template-columns: 80px 1fr;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .info-item .label {
+            font-weight: bold;
+            color: var(--muted);
+            font-size: 0.9em;
+        }
+        
+        .info-item .value {
+            color: var(--text);
+        }
+        
+        .family-info p {
+            margin: 5px 0;
+        }
+        
+        .family-info strong {
+            display: none;
+        }
+        
+        .documents-info ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        
+        .documents-info li {
+            margin: 5px 0;
+        }
+        
+        .documents-info a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .documents-info a:hover {
+            text-decoration: underline;
+        }
+        
+        * { box-sizing: border-box; }
+        html, body { height: 100%; }
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+            color: var(--text);
+            background: var(--bg);
+            line-height: 1.6;
+        }
+        a { color: inherit; text-decoration: none; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+
+        /* Hero */
+        .hero {
+            position: relative;
+            min-height: 88vh;
+            display: grid;
+            align-items: center;
+            overflow: hidden;
+            border-bottom: 1px solid var(--line);
+            background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.98));
+        }
+        /* Top bar */
+        .topbar { position: fixed; top: 0; left: 0; right: 0; z-index: 40; backdrop-filter: blur(10px); background: rgba(255, 255, 255, 0.98); border-bottom: 1px solid var(--line); }
+        .topbar .bar { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; padding: 10px 0; }
+        .brand { font-weight: 800; letter-spacing: 0.02em; color: var(--text); }
+        .topnav { display: none; justify-content: flex-end; gap: 16px; }
+        @media (min-width: 860px) { .topnav { display: flex; } }
+        .hero { padding-top: 64px; }
+        .hero img {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.6;
+            filter: saturate(0.9) contrast(1.05);
+        }
+        .hero::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(60% 60% at 50% 40%, rgba(255,255,255,0) 0%, rgba(255,255,255,0.5) 60%, rgba(255,255,255,0.95) 100%);
+        }
+        .hero-content { position: relative; z-index: 1; padding: 80px 0; }
+        .title { font-size: clamp(28px, 6vw, 56px); font-weight: 800; letter-spacing: -0.02em; margin: 0 0 16px; }
+        .subtitle { font-size: clamp(14px, 2.2vw, 18px); color: var(--muted); max-width: 720px; margin: 0 0 28px; }
+        .cta-row { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+        .btn {
+            background: linear-gradient(180deg, var(--primary), var(--primary-2));
+            color: white;
+            padding: 14px 22px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.08);
+            box-shadow: 0 10px 30px rgba(59,130,246,0.25);
+            font-weight: 700;
+            transition: transform .15s ease, box-shadow .2s ease, filter .2s ease;
+            cursor: pointer;
+        }
+        .btn:hover { transform: translateY(-2px); filter: brightness(1.05); box-shadow: 0 14px 40px rgba(0,123,255,0.35); }
+        .btn.secondary { background: #f8f9fa; border-color: var(--line); box-shadow: none; color: var(--text); }
+        .note { color: var(--muted); font-size: 13px; }
+
+        /* Section */
+        section { padding: 72px 0; }
+        .section-title { font-size: clamp(22px, 3.5vw, 32px); margin: 0 0 16px; font-weight: 800; }
+        .section-sub { color: var(--muted); margin-top: 6px; }
+
+        /* Cards grid */
+        .grid { display: grid; gap: 20px; }
+        .grid-3 { grid-template-columns: repeat(1, 1fr); }
+        @media (min-width: 740px) { .grid-3 { grid-template-columns: repeat(3, 1fr); } }
+        .card { background: linear-gradient(180deg, rgba(0,0,0,0.02), rgba(0,0,0,0.01)); border: 1px solid var(--line); border-radius: 16px; padding: 20px; backdrop-filter: blur(4px); }
+        .card h3 { margin: 12px 0 8px; font-size: 18px; }
+        .card p { margin: 0; color: var(--muted); }
+
+        /* Animated icons */
+        .icon { width: 44px; height: 44px; display: inline-block; }
+        .spin { animation: spin 12s linear infinite; transform-origin: 50% 50%; }
+        .rock { animation: rock 3.6s ease-in-out infinite; transform-origin: 50% 10%; }
+        .float { animation: float 3.2s ease-in-out infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes rock { 0%,100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+        @keyframes float { 0%,100% { transform: translateY(0px); } 50% { transform: translateY(-6px); } }
+
+        /* Cases */
+        .cases-grid { display: grid; gap: 20px; grid-template-columns: 1fr; }
+        @media (min-width: 900px) { .cases-grid { grid-template-columns: repeat(2, 1fr); } }
+        .case { border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: #ffffff; }
+        .case-media { aspect-ratio: 16/9; background: linear-gradient(135deg, #f8f9fa, #ffffff); display: grid; place-items: center; color: var(--muted); font-size: 13px; }
+        .case-body { padding: 16px; }
+        .case h4 { margin: 0 0 8px; font-size: 18px; }
+        .case p { margin: 0; color: var(--muted); }
+
+        /* Steps */
+        .steps { position: relative; margin-top: 20px; }
+        .steps-line { position: absolute; top: 32px; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--line), transparent); }
+        .steps-grid { display: grid; gap: 20px; grid-template-columns: 1fr; }
+        @media (min-width: 860px) { .steps-grid { grid-template-columns: repeat(3, 1fr); } }
+        .step { text-align: center; padding: 20px; border: 1px dashed var(--line); border-radius: 16px; background: linear-gradient(180deg, rgba(0,0,0,0.02), rgba(0,0,0,0.01)); }
+        .circle { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; background: #ffffff; border: 1px solid var(--line); margin: 0 auto 10px; font-weight: 800; color: var(--accent); }
+
+        /* Testimonials carousel */
+        .carousel { display:none; }
+
+        /* Form */
+        .cta-form { display:none; }
+
+        /* Footer */
+        footer { border-top: 1px solid var(--line); padding: 28px 0; color: var(--muted); background: var(--bg-2); }
+        .footer-row { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: center; }
+        @media (min-width: 860px) { .footer-row { grid-template-columns: auto 1fr auto; } }
+        .nav { display: flex; gap: 16px; flex-wrap: wrap; }
+        .social { display: flex; gap: 10px; }
+        .logo { font-weight: 900; letter-spacing: 0.02em; color: var(--text); }
+
+        /* Reveal on scroll */
+        .reveal { opacity: 0; transform: translateY(18px); transition: opacity .6s ease, transform .6s ease; }
+        .reveal.in { opacity: 1; transform: translateY(0); }
+
+        /* Genealogy calendar */
+        .cal-toolbar { display: grid; gap: 14px; grid-template-columns: 1fr; margin-bottom: 14px; }
+        @media (min-width: 880px) { .cal-toolbar { grid-template-columns: 2fr 1fr 1fr 1fr 1fr; } }
+        .cal-head { display: flex; gap: 10px; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+        .cal-title { font-weight: 800; font-size: 20px; color: var(--primary); }
+        .cal-nav { display: flex; gap: 8px; align-items: center; }
+        .cal-btn { background: linear-gradient(180deg, #f8f9fa, #e9ecef); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 10px 16px; cursor: pointer; transition: all 0.2s ease; font-weight: 600; }
+        .cal-btn:hover { background: linear-gradient(180deg, #e9ecef, #dee2e6); transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .cal-btn:active { transform: translateY(0); }
+        
+        /* Calendar grid layouts */
+        .cal-grid { display: grid; gap: 1px; background: var(--line); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        
+        /* Autocomplete styles */
+        .autocomplete-container {
+            position: relative;
+        }
+        .autocomplete-suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid var(--line);
+            border-top: none;
+            border-radius: 0 0 10px 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .autocomplete-item {
+            padding: 10px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--bg-2);
+            transition: background-color 0.2s ease;
+        }
+        .autocomplete-item:hover,
+        .autocomplete-item.selected {
+            background-color: var(--bg-2);
+        }
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+        .family-count {
+            font-size: 12px;
+            color: var(--muted);
+            margin-left: 8px;
+        }
+        
+        /* Month view - proper calendar grid */
+        .cal-month-container { background: white; border-radius: 12px; overflow: hidden; }
+        .cal-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); background: var(--primary); }
+        .cal-weekday { padding: 12px 8px; text-align: center; color: white; font-weight: 600; font-size: 14px; }
+        .cal-month-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+        
+        /* Week view */
+        .cal-week-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+        
+        /* Year view */
+        .cal-year-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+        
+        /* Calendar cells */
+        .cal-cell, .cal-day-col { 
+            background: #ffffff; 
+            border: none;
+            padding: 8px; 
+            min-height: 120px; 
+            position: relative;
+            transition: background-color 0.2s ease;
+        }
+        .cal-cell:hover, .cal-day-col:hover { 
+            background: #f8f9fa; 
+            cursor: pointer;
+        }
+        
+        /* Date styling */
+        .cal-date { 
+            font-weight: 700; 
+            color: var(--text); 
+            margin-bottom: 6px; 
+            font-size: 16px;
+            position: sticky;
+            top: 8px;
+        }
+        .cal-date.other-month {
+            color: var(--muted);
+            opacity: 0.5;
+        }
+        .cal-date.today {
+            background: var(--primary);
+            color: white;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+        
+        /* Events styling */
+        .cal-event { 
+            background: rgba(0,123,255,0.1); 
+            border-left: 3px solid var(--primary); 
+            padding: 4px 6px; 
+            border-radius: 6px; 
+            margin-bottom: 4px; 
+            cursor: pointer; 
+            transition: all 0.2s ease;
+            font-size: 12px;
+            line-height: 1.2;
+        }
+        .cal-event:hover { 
+            background: rgba(0,123,255,0.2); 
+            transform: translateX(2px);
+        }
+        .cal-event small { color: var(--muted); font-size: 10px; }
+        .cal-event.death { 
+            background: rgba(220,53,69,0.1); 
+            border-left: 3px solid var(--danger); 
+        }
+        .cal-event.death:hover { 
+            background: rgba(220,53,69,0.2); 
+        }
+        .cal-event.marriage { 
+            background: rgba(40,167,69,0.1); 
+            border-left: 3px solid var(--success); 
+        }
+        .cal-event.marriage:hover { 
+            background: rgba(40,167,69,0.2); 
+        }
+        
+        /* Стили для отображения календарных систем */
+        .calendar-system-indicator {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            margin-left: 4px;
+        }
+        .calendar-system-julian {
+            background: rgba(255,193,7,0.2);
+            color: #856404;
+        }
+        .calendar-system-gregorian {
+            background: rgba(0,123,255,0.2);
+            color: #004085;
+        }
+        
+        /* Calendar note */
+        .cal-note { color: var(--muted); font-size: 13px; margin-top: 6px; }
+        
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            .cal-toolbar {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+            
+            .autocomplete-container {
+                order: -1;
+            }
+            
+            .cal-head {
+                flex-direction: column;
+                gap: 12px;
+                align-items: stretch;
+            }
+            
+            .cal-nav {
+                justify-content: center;
+            }
+            
+            .cal-title {
+                text-align: center;
+                font-size: 18px;
+            }
+            
+            .cal-event {
+                font-size: 11px;
+                padding: 3px 5px;
+            }
+            
+            .autocomplete-suggestions {
+                font-size: 14px;
+            }
+            
+            .family-count {
+                font-size: 11px;
+            }
+        }
+        
+        /* Weekend styling */
+        .cal-cell.weekend {
+            background: rgba(255, 0, 0, 0.02);
+        }
+        .cal-cell.weekend .cal-date {
+            color: var(--danger);
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .cal-month-grid {
+                grid-template-columns: 1fr;
+            }
+            .cal-weekdays {
+                display: none;
+            }
+            .cal-cell {
+                min-height: 80px;
+                border-bottom: 1px solid var(--line);
+                border-radius: 0;
+            }
+            .cal-cell:last-child {
+                border-bottom: none;
+            }
+        }
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
+        .modal.open { display: flex; align-items: center; justify-content: center; }
+        .modal-content { background: var(--card); padding: 30px; border-radius: 12px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; position: relative; }
+        .modal-close { position: absolute; top: 15px; right: 20px; font-size: 24px; cursor: pointer; color: var(--muted); }
+        .modal-close:hover { color: var(--text); }
+        
+        .modal-title { font-weight: 800; }
+        .modal-close { background: #f8f9fa; color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; cursor: pointer; }
+        .scan-list { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); margin-top: 10px; }
+        .scan-item { background: #f8f9fa; border: 1px solid var(--line); border-radius: 12px; padding: 8px; }
+        .scan-item img { width: 100%; height: 100px; object-fit: cover; border-radius: 8px; cursor: pointer; transition: transform 0.2s ease; }
+        .scan-item img:hover { transform: scale(1.05); }
+        .scan-info { text-align: center; margin-top: 4px; }
+        .scan-info small { color: var(--muted); font-size: 11px; }
+        /* Styles for day-modal card layout */
+        .modal-card {
+            background: var(--card);
+            border-radius: 12px;
+            border: 1px solid var(--line);
+            max-width: 900px;
+            width: 92vw;
+            max-height: 85vh;
+            overflow: auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+        }
+        .modal-head {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 16px 20px; border-bottom: 1px solid var(--line);
+            position: sticky; top: 0; background: var(--card); z-index: 2;
+        }
+        .modal-title { font-size: 18px; font-weight: 800; color: var(--text); }
+        #modal-body { padding: 16px 20px; }
+        /* Two-column details like screenshot */
+        .family-tree {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 16px;
+            margin-top: 12px;
+        }
+        @media (max-width: 720px) {
+            .family-tree { grid-template-columns: 1fr; }
+        }
+        .person-info { background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+        .family-relations { background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+        .relation-item { display: block; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin-bottom: 10px; cursor: pointer; transition: transform 0.15s ease, box-shadow 0.2s ease; }
+        .relation-item:hover { transform: translateY(-2px); box-shadow: 0 4px 14px rgba(0,0,0,0.06); }
+        .relation-type { font-weight: 700; color: var(--text); margin-bottom: 2px; }
+        .relation-details { color: var(--muted); font-size: 14px; }
+        /* Scan tiles similar to screenshot */
+        .scan-tile { background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
+        .scan-thumb { width: 100%; height: 110px; border-radius: 8px; object-fit: cover; background: #e9ecef; display: block; }
+        .scan-empty { display: grid; place-items: center; width: 100%; height: 110px; border-radius: 8px; background: #e9ecef; color: #6c757d; font-weight: 600; }
+        .scan-caption { text-align: center; margin-top: 6px; color: var(--muted); font-size: 12px; }
+        
+        /* Стили для документов в модальном окне */
+        .documents-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .document-item {
+            background: var(--bg-2);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            overflow: hidden;
+            transition: all 0.2s ease;
+        }
+        .document-item:hover {
+            border-color: var(--primary);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .document-link {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            text-decoration: none;
+            color: inherit;
+            gap: 12px;
+        }
+        .document-icon {
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+        .document-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .document-name {
+            font-weight: 500;
+            color: var(--text);
+            margin-bottom: 4px;
+            word-break: break-word;
+            font-size: 14px;
+        }
+        .document-meta {
+            font-size: 12px;
+            color: var(--muted);
+        }
+        
+        /* Стили для анкеты-древа родословного */
+        .family-tree {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 16px;
+        }
+        .person-info {
+            background: var(--bg-2);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 16px;
+        }
+        .person-info h4 {
+            margin: 0 0 12px 0;
+            color: var(--primary);
+            font-size: 16px;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding: 4px 0;
+            border-bottom: 1px solid var(--line);
+        }
+        .info-label {
+            font-weight: 600;
+            color: var(--text);
+        }
+        .info-value {
+            color: var(--muted);
+            text-align: right;
+        }
+        .family-relations {
+            background: var(--bg-2);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 16px;
+        }
+        .relations-title {
+            margin: 0 0 12px 0;
+            color: var(--primary);
+            font-size: 16px;
+        }
+        .relation-item {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        .relation-item:hover {
+            transform: scale(1.02);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .relation-type {
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+        .relation-details {
+            color: var(--muted);
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body id="top">
+    <div class="topbar">
+        <div class="container bar">
+            <div class="brand">Календарь</div>
+            <nav class="topnav">
+                <a href="#family-calendar">Календарь</a>
+                <a href="#about">О проекте</a>
+                <a href="#policy">Политика</a>
+            </nav>
+        </div>
+    </div>
+    <header class="hero">
+        <div style="position:absolute; inset:0; overflow:hidden;">
+            <!-- Используем заглушку, так как файл 2.png не предоставлен -->
+            <img src="https://placehold.co/1920x1080/4F46E5/FFFFFF?text=Family+Archive" alt="Шапка семьи Наумовых" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; filter: saturate(0.9) contrast(1.05); opacity:0.6;">
+            <div style="position:absolute; inset:0; background: linear-gradient(180deg, rgba(255,255,255,0.85), rgba(255,255,255,0.95));"></div>
+        </div>
+        <div class="hero-content">
+            <div class="container">
+                <h1 class="title reveal">Генеалогический календарь</h1>
+                <p class="subtitle reveal" style="transition-delay:.08s">Сопоставление дат из жизни родственников в прошлом с нынешней датой. Узнайте, какие события произошли в этот день годы назад, с конвертацией дат между юлианским и григорианским календарями.</p>
+                <div class="cta-row reveal" style="transition-delay:.16s">
+                    <button class="btn" id="cta-start">Открыть календарь</button>
+                    <span class="note">Данные остаются у вас</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Genealogy calendar section -->
+    <section id="family-calendar">
+        <div class="container">
+            <h2 class="section-title reveal">Семейная история</h2>
+            <p class="section-sub reveal" style="transition-delay:.06s">Сопоставление дат из жизни родственников в прошлом с нынешней датой. Узнайте, какие события произошли в этот день годы назад, с конвертацией дат между юлианским и григорианским календарями</p>
+
+            <div class="card reveal" style="padding:20px; margin-top:12px;">
+                <div class="cal-toolbar">
+                    <div class="autocomplete-container">
+                        <label for="family-search" class="note">Поиск по фамилии</label>
+                        <input type="text" id="family-search" placeholder="Введите фамилию..." style="width:100%; padding:10px 12px; background:#ffffff; border:1px solid var(--line); border-radius:10px; color:var(--text);" autocomplete="off">
+                        <div id="autocomplete-suggestions" class="autocomplete-suggestions" style="display: none;"></div>
+                    </div>
+                    <div>
+                        <label for="view-select" class="note">Масштаб</label>
+                        <select id="view-select" style="width:100%; padding:10px 12px; background:#ffffff; border:1px solid var(--line); border-radius:10px; color:var(--text);">
+                            <option value="week">Неделя</option>
+                            <option value="month" selected>Месяц</option>
+                            <option value="year">Год</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="note">Календарь</label>
+                        <div style="display:flex; gap:8px;">
+                            <label style="display:flex; gap:6px; align-items:center;">
+                                <input type="radio" name="cal-system" value="greg" checked>
+                                <span class="note">Григорианский</span>
+                            </label>
+                            <label style="display:flex; gap:6px; align-items:center;">
+                                <input type="radio" name="cal-system" value="julian">
+                                <span class="note">Юлианский</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="note">Дата</label>
+                        <input type="date" id="current-date" style="width:100%; padding:10px 12px; background:#ffffff; border:1px solid var(--line); border-radius:10px; color:var(--text);">
+                    </div>
+                    <div>
+                        <label class="note">Уведомления</label>
+                        <div style="display:grid; gap:8px; grid-template-columns: 1fr;">
+                            <input type="email" id="owner-email" placeholder="Email владельца сайта" style="width:100%; padding:10px 12px; background:#ffffff; border:1px solid var(--line); border-radius:10px; color:var(--text);">
+                            <div style="display: flex; gap: 8px;">
+                                <button class="cal-btn" id="enable-notify" type="button">Подписаться на напоминания</button>
+                            </div>
+                            <small class="note">Уведомления приходят автоматически за день до события в 09:00.</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cal-head">
+                    <div class="cal-nav">
+                        <button class="cal-btn" id="prev">Назад</button>
+                        <button class="cal-btn" id="today">Сегодня</button>
+                        <button class="cal-btn" id="next">Вперёд</button>
+                    </div>
+                    <div class="cal-title" id="title"></div>
+                </div>
+
+                <div id="calendar"></div>
+                <div class="cal-note" id="status"></div>
+            </div>
+        </div>
+    </section>
+
+    <section id="about">
+        <div class="container">
+            <h2 class="section-title">О проекте</h2>
+            <p class="section-sub">Это цифровой календарь, который оживляет семейную историю. Он не просто хранит даты, а ежедневно показывает связь поколений, автоматически переводя исторические даты событий из жизни предков в современный календарь и подсчитывая точное время, прошедшее с момента каждого события. 
+Цель проекта  - сохранить историю семьи для следующих поколений</p>
+	<p class="section-sub">При создании календаря использованы архивные документы Государственных архивов Калужской и Рязанской областей. </p>
+            <p class="section-sub">Календарь помогает не забывать важные даты — дни рождения, годовщины бракосочетания, дни памяти. Сканы архивов и документов остаются у владельца и показываются только для семейного круга. Пусть память о роде будет светом, который согревает и делает нас сильнее.</p>
+        </div>
+    </section>
+
+    <section id="policy">
+        <div class="container">
+            <h2 class="section-title">Политика конфиденциальности</h2>
+            <p class="section-sub">Вся информация используется только для личного семейного пользования. Уведомления доступны только владельцу (по подтверждённому email). Данные не передаются третьим лицам.</p>
+        </div>
+    </section>
+
+    <!-- Модальное окно для информации о человеке -->
+    <div id="person-modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close">&times;</span>
+            <!-- Содержимое будет заполнено JavaScript -->
+        </div>
+    </div>
+
+
+    <!-- Modal for day details -->
+    <div class="modal" id="day-modal" aria-hidden="true">
+        <div class="modal-card">
+            <div class="modal-head">
+                <div class="modal-title" id="modal-title">События</div>
+                <button class="modal-close" id="modal-close">Закрыть</button>
+            </div>
+            <div id="modal-body"></div>
+            
+            <!-- Анкета-древо родословное -->
+            <div class="family-tree" id="family-tree" style="display: none;">
+                <div class="person-info">
+                    <h4 id="tree-person-name">Информация о человеке</h4>
+                    <div class="info-row">
+                        <span class="info-label">Дата рождения:</span>
+                        <span class="info-value" id="tree-birth-date">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Место рождения:</span>
+                        <span class="info-value" id="tree-birth-place">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Дата смерти:</span>
+                        <span class="info-value" id="tree-death-date">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Место смерти:</span>
+                        <span class="info-value" id="tree-death-place">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Пол:</span>
+                        <span class="info-value" id="tree-sex">-</span>
+                    </div>
+                </div>
+                
+                <div class="family-relations">
+                    <h4 class="relations-title">Семейные связи</h4>
+                    <div id="tree-relations">
+                        <!-- Здесь будут отображаться семейные связи -->
+                    </div>
+                </div>
+            </div>
+            
+            <div style="margin-top:12px;">
+                <div class="note">Сканы, связанные с выбранными родственниками:</div>
+                <div class="scan-list" id="scan-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="container footer-row">
+            <div class="logo">Календарь</div>
+            <nav class="nav">
+                <a href="#top">Главная</a>
+                <a href="#family-calendar">Календарь</a>
+                <a href="#family-calendar">Архивы</a>
+                <a href="#about">О проекте</a>
+                <a href="#policy">Политика конфиденциальности</a>
+            </nav>
+        </div>
+    </footer>
+
+    <!-- JavaScript для функциональности календаря и модальных окон -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Конфигурация путей
+            const CONFIG = {
+                GEDCOM_FILE_PATH: './data/family.ged',  // Путь к GEDCOM файлу
+                SCANS_DIRECTORY: './scans/',            // Папка со сканами
+                DOCUMENTS_DIRECTORY: './documents/'     // Папка с документами
+            };
+
+            // Встроенные данные семьи (встроены для избежания проблем CORS)
+            let familyData = {
+  "header": {
+    "source": "GEDKeeper",
+    "version": "46",
+    "destination": "GEDKeeper",
+    "character_set": "UTF-8",
+    "language": "Russian",
+    "gedcom_version": "5.5.1",
+    "gedcom_form": "LINEAGE-LINKED",
+    "file_name": "Неизвестно.ged",
+    "file_uid": "31AB4FB391322C438DF87B87F9603E719F29",
+    "file_revision": "9",
+    "date": "27 AUG 2025",
+    "time": "01:26:35.5",
+    "changedAt": "27 AUG 2025 01:26:35.5"
+  },
+  "individuals": [
+    {
+      "id": "I7",
+      "uid": "0D938EE6722EAB4AADD32995EB617A16C35E",
+      "change": {
+        "date": "27 AUG 2025",
+        "time": "01:18:19.8"
+      },
+      "sex": "M",
+      "name": {
+        "full": "Николай Иванович Минаев",
+        "surname": "Минаев",
+        "given": "Николай",
+        "patronymic": "Иванович"
+      },
+      "child_in_family_id": "F5",
+      "spouse_in_family_id": "F4",
+      "birth": {
+        "date": "07 SEP 1907",
+        "place": "Москва, Россия",
+        "location_id": "L1",
+        "agency": "Церковь Богородицерождественская за Смоленскими воротами",
+        "object_id": "O9"
+      },
+      "death": {
+        "date": "02 FEB 1971",
+        "place": "Москва, Россия",
+        "location_id": "L1"
+      },
+      "changedAt": "27 AUG 2025 01:18:19.8",
+      "nameParts": {
+        "given": "Николай",
+        "patronymic": "Иванович",
+        "surname": "Минаев"
+      },
+      "marriages": [
+        {
+          "date": "17 OCT 1907",
+          "place": "Сапожок, Рязанская обл., Россия, 391940",
+          "location_id": "L3",
+          "object_id": "O5",
+          "familyId": "F8",
+          "spouseId": "I8"
+        },
+        {
+          "date": "20 SEP 1887",
+          "place": "Митинское, Рязанская область",
+          "location_id": "L8",
+          "source": {
+            "id": "S6",
+            "page": "97 об",
+            "quality": "3"
+          },
+          "object_id": "O6",
+          "familyId": "F5",
+          "spouseId": "I8"
+        }
+      ]
+    },
+    {
+      "id": "I8",
+      "uid": "0B2BA513D2A01545928BC0CDC818A4B69E6D",
+      "change": {
+        "date": "27 AUG 2025",
+        "time": "01:18:32.5"
+      },
+      "sex": "F",
+      "name": {
+        "full": "Серафима Сергеевна Аленкина",
+        "surname": "Аленкина",
+        "given": "Серафима",
+        "patronymic": "Сергеевна"
+      },
+      "child_in_family_id": "F8",
+      "spouse_in_family_id": "F4",
+      "birth": {
+        "date": "27 DEC 1909",
+        "place": "Москва, Россия",
+        "location_id": "L1",
+        "object_id": "O1"
+      },
+      "death": {
+        "date": "15 FEB 1998",
+        "place": "Москва, Россия",
+        "location_id": "L1"
+      },
+      "changedAt": "27 AUG 2025 01:18:32.5",
+      "nameParts": {
+        "given": "Серафима",
+        "patronymic": "Сергеевна",
+        "surname": "Аленкина"
+      },
+      "marriages": [
+        {
+          "date": "17 OCT 1907",
+          "place": "Сапожок, Рязанская обл., Россия, 391940",
+          "location_id": "L3",
+          "object_id": "O5",
+          "familyId": "F8",
+          "spouseId": "I7"
+        },
+        {
+          "date": "20 SEP 1887",
+          "place": "Митинское, Рязанская область",
+          "location_id": "L8",
+          "source": {
+            "id": "S6",
+            "page": "97 об",
+            "quality": "3"
+          },
+          "object_id": "O6",
+          "familyId": "F5",
+          "spouseId": "I7"
+        }
+      ]
+    },
+    {
+      "id": "I9",
+      "uid": "411B030BE1A6A142965736AC4E37AE4D23DF",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "20:46:29.1"
+      },
+      "sex": "M",
+      "name": {
+        "full": "Иван Андреевич Минаев",
+        "surname": "Минаев",
+        "given": "Иван",
+        "patronymic": "Андреевич"
+      },
+      "child_in_family_id": "F6",
+      "spouse_in_family_id": "F5",
+      "birth": {
+        "date": "27 MAY 1869",
+        "place": "Бортное, Рязанская обл., Россия, 391130",
+        "location_id": "L2",
+        "agency": "Церковь села Митинское",
+        "object_id": "O14"
+      },
+      "death": {},
+      "changedAt": "17 AUG 2025 20:46:29.1",
+      "nameParts": {
+        "given": "Иван",
+        "patronymic": "Андреевич",
+        "surname": "Минаев"
+      },
+      "marriages": [
+        {
+          "date": "20 SEP 1887",
+          "place": "Митинское, Рязанская область",
+          "location_id": "L8",
+          "source": {
+            "id": "S6",
+            "page": "97 об",
+            "quality": "3"
+          },
+          "object_id": "O6",
+          "familyId": "F5",
+          "spouseId": "I10"
+        }
+      ]
+    },
+    {
+      "id": "I10",
+      "uid": "DC34E279A4F35A41B98DEA0FD4F442F8DE4D",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "21:25:25.7"
+      },
+      "sex": "F",
+      "name": {
+        "full": "Евдокия Семеновна",
+        "given": "Евдокия",
+        "patronymic": "Семеновна",
+        "married_name": "Минаева"
+      },
+      "spouse_in_family_id": "F5",
+      "birth": {
+        "date": "1869"
+      },
+      "death": {},
+      "changedAt": "17 AUG 2025 21:25:25.7",
+      "nameParts": {
+        "given": "Евдокия",
+        "patronymic": "Семеновна",
+        "surname": "",
+        "marriedSurname": "Минаева"
+      },
+      "marriages": [
+        {
+          "date": "20 SEP 1887",
+          "place": "Митинское, Рязанская область",
+          "location_id": "L8",
+          "source": {
+            "id": "S6",
+            "page": "97 об",
+            "quality": "3"
+          },
+          "object_id": "O6",
+          "familyId": "F5",
+          "spouseId": "I9"
+        }
+      ]
+    },
+    {
+      "id": "I11",
+      "uid": "8CD04D4913037945A831BC2FBB2FE0EC4016",
+      "change": {
+        "date": "07 AUG 2025",
+        "time": "21:40:57.9"
+      },
+      "sex": "M",
+      "name": {
+        "full": "Андрей Минаевич",
+        "given": "Андрей",
+        "patronymic": "Минаевич"
+      },
+      "child_in_family_id": "F7",
+      "spouse_in_family_id": "F6",
+      "birth": {},
+      "changedAt": "07 AUG 2025 21:40:57.9",
+      "nameParts": {
+        "given": "Андрей",
+        "patronymic": "Минаевич",
+        "surname": ""
+      }
+    },
+    {
+      "id": "I13",
+      "uid": "5045B46AFDF7454D87C07A26A5D126C5814F",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "20:45:58.5"
+      },
+      "sex": "M",
+      "name": {
+        "full": "Минай Парамонович",
+        "given": "Минай",
+        "patronymic": "Парамонович"
+      },
+      "spouse_in_family_id": "F7",
+      "birth": {},
+      "death": {
+        "date": "14 SEP 1885",
+        "place": "Бортное, Рязанская обл., Россия, 391130",
+        "location_id": "L2",
+        "object_id": "O7"
+      },
+      "changedAt": "17 AUG 2025 20:45:58.5",
+      "nameParts": {
+        "given": "Минай",
+        "patronymic": "Парамонович",
+        "surname": ""
+      }
+    },
+    {
+      "id": "I14",
+      "uid": "F490798A7605104B940D31980F6887C489B1",
+      "change": {
+        "date": "27 AUG 2025",
+        "time": "01:17:58.9"
+      },
+      "sex": "M",
+      "name": {
+        "full": "Сергей Иванович Аленкин",
+        "surname": "Аленкин",
+        "given": "Сергей",
+        "patronymic": "Иванович"
+      },
+      "child_in_family_id": "F9",
+      "spouse_in_family_id": "F8",
+      "birth": {
+        "date": "06 JUL 1885",
+        "place": "Сапожок, Рязанская обл., Россия, 391940",
+        "location_id": "L3",
+        "object_id": "O4"
+      },
+      "death": {},
+      "object_id": "O4",
+      "changedAt": "27 AUG 2025 01:17:58.9",
+      "nameParts": {
+        "given": "Сергей",
+        "patronymic": "Иванович",
+        "surname": "Аленкин"
+      },
+      "marriages": [
+        {
+          "date": "17 OCT 1907",
+          "place": "Сапожок, Рязанская обл., Россия, 391940",
+          "location_id": "L3",
+          "object_id": "O5",
+          "familyId": "F8",
+          "spouseId": "I15"
+        }
+      ]
+    },
+    {
+      "id": "I15",
+      "uid": "EE70D6D97D50F441A287D5456E0C0CD0A822",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "21:27:01.1"
+      },
+      "sex": "F",
+      "name": {
+        "full": "Татьяна Косминична Ивлиева",
+        "surname": "Ивлиева",
+        "given": "Татьяна",
+        "patronymic": "Косминична",
+        "married_name": "Аленкина"
+      },
+      "child_in_family_id": "F12",
+      "spouse_in_family_id": "F8",
+      "birth": {
+        "date": "11 JAN 1885",
+        "place": "Сапожок, Рязанская обл., Россия, 391940",
+        "location_id": "L3",
+        "agency": "Соборная Успенская церковь города Сапожок",
+        "object_id": "O11"
+      },
+      "death": {},
+      "changedAt": "17 AUG 2025 21:27:01.1",
+      "nameParts": {
+        "given": "Татьяна",
+        "patronymic": "Косминична",
+        "surname": "Ивлиева",
+        "marriedSurname": "Аленкина"
+      },
+      "marriages": [
+        {
+          "date": "17 OCT 1907",
+          "place": "Сапожок, Рязанская обл., Россия, 391940",
+          "location_id": "L3",
+          "object_id": "O5",
+          "familyId": "F8",
+          "spouseId": "I14"
+        }
+      ]
+    },
+    {
+      "id": "I16",
+      "uid": "5D9630ABD8717E40BB7112709E88415B4588",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "21:26:07.2"
+      },
+      "sex": "M",
+      "name": {
+        "full": "Иван Николаевич Аленкин",
+        "surname": "Аленкин",
+        "given": "Иван",
+        "patronymic": "Николаевич"
+      },
+      "child_in_family_id": "F10",
+      "spouse_in_family_id": "F9",
+      "birth": {
+        "date": "12 NOV 1859",
+        "place": "Сапожок, Рязанская обл., Россия, 391940",
+        "location_id": "L3",
+        "agency": "Скорбященская церковь г. Сапожка",
+        "source": {
+          "id": "S9",
+          "page": "16 об",
+          "quality": "3"
+        },
+        "object_id": "O12"
+      },
+      "death": {},
+      "changedAt": "17 AUG 2025 21:26:07.2",
+      "nameParts": {
+        "given": "Иван",
+        "patronymic": "Николаевич",
+        "surname": "Аленкин"
+      }
+    },
+    {
+      "id": "I18",
+      "uid": "616B667A88A53947843BEAC97F997EE6471A",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "21:26:03.3"
+      },
+      "sex": "M",
+      "name": {
+        "full": "Климентий Иванович Аленкин",
+        "surname": "Аленкин",
+        "given": "Климентий",
+        "patronymic": "Иванович"
+      },
+      "spouse_in_family_id": "F11",
+      "birth": {},
+      "death": {
+        "date": "19 OCT 1851",
+        "place": "Сапожок, Рязанская обл., Россия, 391940",
+        "location_id": "L3",
+        "object_id": "O3"
+      },
+      "changedAt": "17 AUG 2025 21:26:03.3",
+      "nameParts": {
+        "given": "Климентий",
+        "patronymic": "Иванович",
+        "surname": "Аленкин"
+      }
+    },
+    {
+      "id": "I17",
+      "uid": "F3CB495D36D174489B987EBAF9C2C8677C16",
+      "change": {
+        "date": "07 AUG 2025",
+        "time": "21:46:35.5"
+      },
+      "sex": "M",
+      "name": {
+        "full": "Николай Климович Аленкин",
+        "surname": "Аленкин",
+        "given": "Николай",
+        "patronymic": "Климович"
+      },
+      "child_in_family_id": "F11",
+      "spouse_in_family_id": "F10",
+      "birth": {},
+      "changedAt": "07 AUG 2025 21:46:35.5",
+      "nameParts": {
+        "given": "Николай",
+        "patronymic": "Климович",
+        "surname": "Аленкин"
+      }
+    },
+    {
+      "id": "I19",
+      "uid": "79590CDBF9336E4DA54BAB00EA831E4E145E",
+      "change": {
+        "date": "07 AUG 2025",
+        "time": "21:50:05.1"
+      },
+      "sex": "M",
+      "name": {
+        "full": "Косьма Николаевич Ивлиев",
+        "surname": "Ивлиев",
+        "given": "Косьма",
+        "patronymic": "Николаевич"
+      },
+      "child_in_family_id": "F13",
+      "spouse_in_family_id": "F12",
+      "birth": {},
+      "changedAt": "07 AUG 2025 21:50:05.1",
+      "nameParts": {
+        "given": "Косьма",
+        "patronymic": "Николаевич",
+        "surname": "Ивлиев"
+      },
+      "marriages": [
+        {
+          "date": "10 NOV 1878",
+          "place": "Сапожок, Рязанская обл., Россия, 391940",
+          "location_id": "L3",
+          "object_id": "O20",
+          "familyId": "F12",
+          "spouseId": "I22"
+        }
+      ]
+    },
+    {
+      "id": "I21",
+      "uid": "FE9019C4830BDA41AC6EA87CA03FFD3F6D40",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "21:26:05.5"
+      },
+      "sex": "M",
+      "name": {
+        "full": "Николай Дмитриевич Ивлиев",
+        "surname": "Ивлиев",
+        "given": "Николай",
+        "patronymic": "Дмитриевич"
+      },
+      "spouse_in_family_id": "F13",
+      "birth": {},
+      "death": {
+        "date": "15 JUL 1864",
+        "place": "Сапожок, Рязанская обл., Россия, 391940",
+        "location_id": "L3",
+        "agency": "Соборная Успенская церковь города Сапожок",
+        "object_id": "O19"
+      },
+      "changedAt": "17 AUG 2025 21:26:05.5",
+      "nameParts": {
+        "given": "Николай",
+        "patronymic": "Дмитриевич",
+        "surname": "Ивлиев"
+      }
+    },
+    {
+      "id": "I22",
+      "uid": "FF64E00D3F14A34DB72EC7FB4961E6A56FDB",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "21:26:44.8"
+      },
+      "sex": "F",
+      "name": {
+        "full": "Евдокия Акимовна Карташева",
+        "surname": "Карташева",
+        "given": "Евдокия",
+        "patronymic": "Акимовна",
+        "married_name": "Ивлиева"
+      },
+      "spouse_in_family_id": "F12",
+      "birth": {},
+      "changedAt": "17 AUG 2025 21:26:44.8",
+      "nameParts": {
+        "given": "Евдокия",
+        "patronymic": "Акимовна",
+        "surname": "Карташева",
+        "marriedSurname": "Ивлиева"
+      },
+      "marriages": [
+        {
+          "date": "10 NOV 1878",
+          "place": "Сапожок, Рязанская обл., Россия, 391940",
+          "location_id": "L3",
+          "object_id": "O20",
+          "familyId": "F12",
+          "spouseId": "I19"
+        }
+      ]
+    },
+    {
+      "id": "I25",
+      "uid": "86922C3EA018CD48876BB753EDB5E217E64A",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "22:12:50.8"
+      },
+      "sex": "M",
+      "name": {
+        "full": "Тимофей Иванович Наумов",
+        "surname": "Наумов",
+        "given": "Тимофей",
+        "patronymic": "Иванович"
+      },
+      "spouse_in_family_id": "F16",
+      "birth": {},
+      "changedAt": "17 AUG 2025 22:12:50.8",
+      "nameParts": {
+        "given": "Тимофей",
+        "patronymic": "Иванович",
+        "surname": "Наумов"
+      },
+      "marriages": [
+        {
+          "date": "29 JUN 1851",
+          "place": "Маковцы, Калужская обл., Россия, 249861",
+          "location_id": "L5",
+          "object_id": "O23",
+          "familyId": "F16",
+          "spouseId": "I26"
+        }
+      ]
+    },
+    {
+      "id": "I26",
+      "uid": "8AAB2658785DEB48BE327F7194E2EA312CFE",
+      "change": {
+        "date": "07 AUG 2025",
+        "time": "21:52:30.4"
+      },
+      "sex": "F",
+      "name": {
+        "full": "Хиония Лаврентьевна",
+        "given": "Хиония",
+        "patronymic": "Лаврентьевна",
+        "married_name": "Наумова"
+      },
+      "spouse_in_family_id": "F16",
+      "birth": {},
+      "changedAt": "07 AUG 2025 21:52:30.4",
+      "nameParts": {
+        "given": "Хиония",
+        "patronymic": "Лаврентьевна",
+        "surname": "",
+        "marriedSurname": "Наумова"
+      },
+      "marriages": [
+        {
+          "date": "29 JUN 1851",
+          "place": "Маковцы, Калужская обл., Россия, 249861",
+          "location_id": "L5",
+          "object_id": "O23",
+          "familyId": "F16",
+          "spouseId": "I25"
+        }
+      ]
+    },
+    {
+      "id": "I24",
+      "uid": "CC20552510B53245B3AFB3E7A9347F39339C",
+      "change": {
+        "date": "07 AUG 2025",
+        "time": "21:52:47.4"
+      },
+      "sex": "M",
+      "name": {
+        "full": "Степан Тимофеевич Наумов",
+        "surname": "Наумов",
+        "given": "Степан",
+        "patronymic": "Тимофеевич"
+      },
+      "child_in_family_id": "F16",
+      "spouse_in_family_id": "F15",
+      "birth": {},
+      "changedAt": "07 AUG 2025 21:52:47.4",
+      "nameParts": {
+        "given": "Степан",
+        "patronymic": "Тимофеевич",
+        "surname": "Наумов"
+      }
+    },
+    {
+      "id": "I23",
+      "uid": "CD86C3ACF01B2F48A59744B0B35C448B521B",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "22:10:13.2"
+      },
+      "sex": "M",
+      "name": {
+        "full": "Яков Степанович Наумов",
+        "surname": "Наумов",
+        "given": "Яков",
+        "patronymic": "Степанович"
+      },
+      "child_in_family_id": "F15",
+      "spouse_in_family_id": "F14",
+      "birth": {
+        "date": "02 OCT 1900",
+        "place": "Маковцы, Калужская обл., Россия, 249861",
+        "location_id": "L5",
+        "object_id": "O18"
+      },
+      "death": {},
+      "changedAt": "17 AUG 2025 22:10:13.2",
+      "nameParts": {
+        "given": "Яков",
+        "patronymic": "Степанович",
+        "surname": "Наумов"
+      },
+      "marriages": [
+        {
+          "date": "06 MAY 1918",
+          "place": "Маковцы, Калужская обл., Россия, 249861",
+          "location_id": "L5",
+          "object_id": "O22",
+          "familyId": "F14",
+          "spouseId": "I30"
+        }
+      ]
+    },
+    {
+      "id": "I28",
+      "uid": "059FF5576DEAE24D9272133FED106117413D",
+      "change": {
+        "date": "07 AUG 2025",
+        "time": "21:56:02.3"
+      },
+      "sex": "M",
+      "name": {
+        "full": "Семен Васильевич Герасимов",
+        "surname": "Герасимов",
+        "given": "Семен",
+        "patronymic": "Васильевич"
+      },
+      "spouse_in_family_id": "F17",
+      "birth": {},
+      "changedAt": "07 AUG 2025 21:56:02.3",
+      "nameParts": {
+        "given": "Семен",
+        "patronymic": "Васильевич",
+        "surname": "Герасимов"
+      }
+    },
+    {
+      "id": "I29",
+      "uid": "3CF74576E98D2545B59867754659567B67A4",
+      "change": {
+        "date": "07 AUG 2025",
+        "time": "21:56:31.8"
+      },
+      "sex": "F",
+      "name": {
+        "full": "Александра Яковлевна Наумова",
+        "surname": "Наумова",
+        "given": "Александра",
+        "patronymic": "Яковлевна"
+      },
+      "child_in_family_id": "F14",
+      "spouse_in_family_id": "F17",
+      "birth": {},
+      "changedAt": "07 AUG 2025 21:56:31.8",
+      "nameParts": {
+        "given": "Александра",
+        "patronymic": "Яковлевна",
+        "surname": "Наумова"
+      }
+    },
+    {
+      "id": "I30",
+      "uid": "3DCDF8F5A6D05A4ABC04919AB848C6FDBF4F",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "22:13:35.8"
+      },
+      "sex": "F",
+      "name": {
+        "full": "Дарья Васильевна Луняева",
+        "surname": "Луняева",
+        "given": "Дарья",
+        "patronymic": "Васильевна",
+        "married_name": "Наумова"
+      },
+      "child_in_family_id": "F18",
+      "spouse_in_family_id": "F14",
+      "birth": {
+        "date": "26 FEB 1900",
+        "place": "Гурьево, Калужская обл., Россия, 249109",
+        "location_id": "L6",
+        "object_id": "O17"
+      },
+      "death": {},
+      "changedAt": "17 AUG 2025 22:13:35.8",
+      "nameParts": {
+        "given": "Дарья",
+        "patronymic": "Васильевна",
+        "surname": "Луняева",
+        "marriedSurname": "Наумова"
+      },
+      "marriages": [
+        {
+          "date": "06 MAY 1918",
+          "place": "Маковцы, Калужская обл., Россия, 249861",
+          "location_id": "L5",
+          "object_id": "O22",
+          "familyId": "F14",
+          "spouseId": "I23"
+        }
+      ]
+    },
+    {
+      "id": "I31",
+      "uid": "8D45C247A309774CBCA2D1121A54117983F8",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "22:40:36.9"
+      },
+      "sex": "M",
+      "name": {
+        "full": "Василий Петрович Луняев",
+        "surname": "Луняев",
+        "given": "Василий",
+        "patronymic": "Петрович"
+      },
+      "child_in_family_id": "F19",
+      "spouse_in_family_id": "F18",
+      "birth": {
+        "date": "21 APR 1872",
+        "place": "Гурьево, Калужская обл., Россия, 249109",
+        "location_id": "L6",
+        "object_id": "O15"
+      },
+      "death": {},
+      "changedAt": "17 AUG 2025 22:40:36.9",
+      "nameParts": {
+        "given": "Василий",
+        "patronymic": "Петрович",
+        "surname": "Луняев"
+      },
+      "marriages": [
+        {
+          "date": "20 OCT 1891",
+          "place": "Маковцы, Калужская обл., Россия, 249861",
+          "location_id": "L5",
+          "object_id": "O16",
+          "familyId": "F18",
+          "spouseId": "I32"
+        }
+      ]
+    },
+    {
+      "id": "I32",
+      "uid": "AC2F31C8451D76418009E2981AB092438F19",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "22:40:28.4"
+      },
+      "sex": "F",
+      "name": {
+        "full": "Наталья Федоровна Епихина",
+        "surname": "Епихина",
+        "given": "Наталья",
+        "patronymic": "Федоровна",
+        "married_name": "Луняева"
+      },
+      "child_in_family_id": "F3",
+      "spouse_in_family_id": "F18",
+      "birth": {},
+      "changedAt": "17 AUG 2025 22:40:28.4",
+      "nameParts": {
+        "given": "Наталья",
+        "patronymic": "Федоровна",
+        "surname": "Епихина",
+        "marriedSurname": "Луняева"
+      },
+      "marriages": [
+        {
+          "date": "20 OCT 1891",
+          "place": "Маковцы, Калужская обл., Россия, 249861",
+          "location_id": "L5",
+          "object_id": "O16",
+          "familyId": "F18",
+          "spouseId": "I31"
+        }
+      ]
+    },
+    {
+      "id": "I33",
+      "uid": "F013EF3894541844885D091D8C1C7F14B40F",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "22:13:06.5"
+      },
+      "sex": "M",
+      "name": {
+        "full": "Петр Максимович Луняев",
+        "surname": "Луняев",
+        "given": "Петр",
+        "patronymic": "Максимович"
+      },
+      "spouse_in_family_id": "F19",
+      "birth": {
+        "date": "14 JUN 1846",
+        "place": "Гурьево, Калужская обл., Россия, 249109",
+        "location_id": "L6",
+        "object_id": "O10"
+      },
+      "death": {
+        "date": "02 JUL 1908",
+        "place": "Гурьево, Калужская обл., Россия, 249109",
+        "location_id": "L6",
+        "object_id": "O13"
+      },
+      "changedAt": "17 AUG 2025 22:13:06.5",
+      "nameParts": {
+        "given": "Петр",
+        "patronymic": "Максимович",
+        "surname": "Луняев"
+      }
+    },
+    {
+      "id": "I34",
+      "uid": "2803D4240254D343B50F66A63AA93B54D1C6",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "22:35:28.9"
+      },
+      "sex": "M",
+      "name": {
+        "full": "Федор Иванович Епихин",
+        "surname": "Епихин",
+        "given": "Федор",
+        "patronymic": "Иванович"
+      },
+      "child_in_family_id": "F2",
+      "spouse_in_family_id": "F3",
+      "birth": {},
+      "death": {},
+      "changedAt": "17 AUG 2025 22:35:28.9",
+      "nameParts": {
+        "given": "Федор",
+        "patronymic": "Иванович",
+        "surname": "Епихин"
+      }
+    },
+    {
+      "id": "I35",
+      "uid": "56434ED140E42C41B06BA27ECE703B3F3CE7",
+      "change": {
+        "date": "27 AUG 2025",
+        "time": "01:23:29"
+      },
+      "sex": "M",
+      "name": {
+        "full": "Иван Федорович Епихин",
+        "surname": "Епихин",
+        "given": "Иван",
+        "patronymic": "Федорович"
+      },
+      "child_in_family_id": "F21",
+      "spouse_in_family_id": "F2",
+      "birth": {},
+      "changedAt": "27 AUG 2025 01:23:29",
+      "nameParts": {
+        "given": "Иван",
+        "patronymic": "Федорович",
+        "surname": "Епихин"
+      }
+    },
+    {
+      "id": "I37",
+      "uid": "9964882F0886464D9235DB573EBCF1FBB4B3",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "22:34:20.7"
+      },
+      "sex": "F",
+      "name": {
+        "full": "Прасковья Антоновна Синяева",
+        "surname": "Синяева",
+        "given": "Прасковья",
+        "patronymic": "Антоновна",
+        "married_name": "Епихина"
+      },
+      "spouse_in_family_id": "F2",
+      "birth": {
+        "date": "11 OCT 1833",
+        "place": "Меховое, Калужская обл., Россия, 249262",
+        "location_id": "L4",
+        "object_id": "O8"
+      },
+      "death": {},
+      "changedAt": "17 AUG 2025 22:34:20.7",
+      "nameParts": {
+        "given": "Прасковья",
+        "patronymic": "Антоновна",
+        "surname": "Синяева",
+        "marriedSurname": "Епихина"
+      }
+    },
+    {
+      "id": "I38",
+      "uid": "6A05547A2566AC449E0C172145E915D0AD2B",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "21:32:23.5"
+      },
+      "sex": "M",
+      "name": {
+        "full": "Федор Антонович",
+        "given": "Федор",
+        "patronymic": "Антонович"
+      },
+      "spouse_in_family_id": "F21",
+      "birth": {},
+      "changedAt": "17 AUG 2025 21:32:23.5",
+      "nameParts": {
+        "given": "Федор",
+        "patronymic": "Антонович",
+        "surname": ""
+      },
+      "marriages": [
+        {
+          "date": "09 NOV 1833",
+          "place": "Меховое, Калужская обл., Россия, 249262",
+          "location_id": "L4",
+          "object_id": "O2",
+          "familyId": "F21",
+          "spouseId": "I39"
+        }
+      ]
+    },
+    {
+      "id": "I39",
+      "uid": "A187BE90F1099040828F023F23B71222A073",
+      "change": {
+        "date": "07 AUG 2025",
+        "time": "22:07:57.5"
+      },
+      "sex": "F",
+      "name": {
+        "full": "Ефимья Аверьяновна",
+        "given": "Ефимья",
+        "patronymic": "Аверьяновна"
+      },
+      "spouse_in_family_id": "F21",
+      "birth": {},
+      "death": {},
+      "changedAt": "07 AUG 2025 22:07:57.5",
+      "nameParts": {
+        "given": "Ефимья",
+        "patronymic": "Аверьяновна",
+        "surname": ""
+      },
+      "marriages": [
+        {
+          "date": "09 NOV 1833",
+          "place": "Меховое, Калужская обл., Россия, 249262",
+          "location_id": "L4",
+          "object_id": "O2",
+          "familyId": "F21",
+          "spouseId": "I38"
+        }
+      ]
+    }
+  ],
+  "families": [
+    {
+      "id": "F4",
+      "uid": "417C6BDBECC79A47836E026CAAB4D886B2A9",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "21:25:50.3"
+      },
+      "husband_id": "I7",
+      "wife_id": "I8",
+      "status": "married",
+      "changedAt": "17 AUG 2025 21:25:50.3"
+    },
+    {
+      "id": "F5",
+      "uid": "3C19D866D213C647BD65D055C8D1F90260D4",
+      "change": {
+        "date": "27 AUG 2025",
+        "time": "01:19:13.7"
+      },
+      "object_id": "O6",
+      "husband_id": "I9",
+      "wife_id": "I10",
+      "status": "married",
+      "children_ids": [
+        "I7"
+      ],
+      "marriage": {
+        "date": "20 SEP 1887",
+        "place": "Митинское, Рязанская область",
+        "location_id": "L8",
+        "source": {
+          "id": "S6",
+          "page": "97 об",
+          "quality": "3"
+        },
+        "object_id": "O6"
+      },
+      "changedAt": "27 AUG 2025 01:19:13.7"
+    },
+    {
+      "id": "F6",
+      "uid": "333F4E50D0162E48A10CC27861A11F960AB6",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "22:26:29"
+      },
+      "husband_id": "I11",
+      "status": "married",
+      "children_ids": [
+        "I9"
+      ],
+      "changedAt": "17 AUG 2025 22:26:29"
+    },
+    {
+      "id": "F7",
+      "uid": "DB60C0F6C0D9E3439EE8DBC23F4152E98E5A",
+      "change": {
+        "date": "07 AUG 2025",
+        "time": "21:42:11.4"
+      },
+      "husband_id": "I13",
+      "children_ids": [
+        "I11"
+      ],
+      "changedAt": "07 AUG 2025 21:42:11.4"
+    },
+    {
+      "id": "F8",
+      "uid": "5E845AC7D79AE94899FC843C048AACC9FDB6",
+      "change": {
+        "date": "27 AUG 2025",
+        "time": "01:22:18"
+      },
+      "object_id": "O5",
+      "husband_id": "I14",
+      "wife_id": "I15",
+      "status": "married",
+      "children_ids": [
+        "I8"
+      ],
+      "marriage": {
+        "date": "17 OCT 1907",
+        "place": "Сапожок, Рязанская обл., Россия, 391940",
+        "location_id": "L3",
+        "object_id": "O5"
+      },
+      "changedAt": "27 AUG 2025 01:22:18"
+    },
+    {
+      "id": "F9",
+      "uid": "11F07FB92523694D8604CEB162803E48A8E4",
+      "change": {
+        "date": "07 AUG 2025",
+        "time": "21:45:25.3"
+      },
+      "husband_id": "I16",
+      "children_ids": [
+        "I14"
+      ],
+      "changedAt": "07 AUG 2025 21:45:25.3"
+    },
+    {
+      "id": "F11",
+      "uid": "BC3DCE0F1866A3499766CA9E6FB5B138B294",
+      "change": {
+        "date": "07 AUG 2025",
+        "time": "21:46:34.4"
+      },
+      "husband_id": "I18",
+      "children_ids": [
+        "I17"
+      ],
+      "changedAt": "07 AUG 2025 21:46:34.4"
+    },
+    {
+      "id": "F10",
+      "uid": "2DA272292B1ACF4491275055D34B7430E1A2",
+      "change": {
+        "date": "07 AUG 2025",
+        "time": "21:46:36.9"
+      },
+      "husband_id": "I17",
+      "children_ids": [
+        "I16"
+      ],
+      "changedAt": "07 AUG 2025 21:46:36.9"
+    },
+    {
+      "id": "F12",
+      "uid": "35F754D834EC2C4C866178F29B52DF929F64",
+      "change": {
+        "date": "27 AUG 2025",
+        "time": "01:19:10.1"
+      },
+      "object_id": "O20",
+      "husband_id": "I19",
+      "wife_id": "I22",
+      "status": "married",
+      "children_ids": [
+        "I15"
+      ],
+      "marriage": {
+        "date": "10 NOV 1878",
+        "place": "Сапожок, Рязанская обл., Россия, 391940",
+        "location_id": "L3",
+        "object_id": "O20"
+      },
+      "changedAt": "27 AUG 2025 01:19:10.1"
+    },
+    {
+      "id": "F13",
+      "uid": "A67188AD7D614F4581F08B2E7F76D446F7CE",
+      "change": {
+        "date": "07 AUG 2025",
+        "time": "21:48:54.6"
+      },
+      "husband_id": "I21",
+      "children_ids": [
+        "I19"
+      ],
+      "changedAt": "07 AUG 2025 21:48:54.6"
+    },
+    {
+      "id": "F16",
+      "uid": "4A5BB88D40ECDC4999422A1BFC9E0B141488",
+      "change": {
+        "date": "27 AUG 2025",
+        "time": "01:19:04.6"
+      },
+      "object_id": "O23",
+      "husband_id": "I25",
+      "wife_id": "I26",
+      "status": "married",
+      "children_ids": [
+        "I24"
+      ],
+      "marriage": {
+        "date": "29 JUN 1851",
+        "place": "Маковцы, Калужская обл., Россия, 249861",
+        "location_id": "L5",
+        "object_id": "O23"
+      },
+      "changedAt": "27 AUG 2025 01:19:04.6"
+    },
+    {
+      "id": "F15",
+      "uid": "3A14854F8CF79446BD0BCC11EDE2950A9260",
+      "change": {
+        "date": "07 AUG 2025",
+        "time": "21:52:58.2"
+      },
+      "husband_id": "I24",
+      "children_ids": [
+        "I23"
+      ],
+      "changedAt": "07 AUG 2025 21:52:58.2"
+    },
+    {
+      "id": "F14",
+      "uid": "0F53F4FB99CF754DB164AFD91E742870426B",
+      "change": {
+        "date": "27 AUG 2025",
+        "time": "01:23:01.7"
+      },
+      "husband_id": "I23",
+      "wife_id": "I30",
+      "status": "married",
+      "children_ids": [
+        "I29"
+      ],
+      "marriage": {
+        "date": "06 MAY 1918",
+        "place": "Маковцы, Калужская обл., Россия, 249861",
+        "location_id": "L5",
+        "object_id": "O22"
+      },
+      "changedAt": "27 AUG 2025 01:23:01.7"
+    },
+    {
+      "id": "F17",
+      "uid": "CCDFAA00F0B4E44486E93D83D2EAE95C5125",
+      "change": {
+        "date": "07 AUG 2025",
+        "time": "21:56:22.2"
+      },
+      "husband_id": "I28",
+      "wife_id": "I29",
+      "changedAt": "07 AUG 2025 21:56:22.2"
+    },
+    {
+      "id": "F18",
+      "uid": "3E187FA9F22F1541A3292D7480A447BC8906",
+      "change": {
+        "date": "27 AUG 2025",
+        "time": "01:19:18.2"
+      },
+      "husband_id": "I31",
+      "wife_id": "I32",
+      "status": "married",
+      "children_ids": [
+        "I30"
+      ],
+      "marriage": {
+        "date": "20 OCT 1891",
+        "place": "Маковцы, Калужская обл., Россия, 249861",
+        "location_id": "L5",
+        "object_id": "O16"
+      },
+      "changedAt": "27 AUG 2025 01:19:18.2"
+    },
+    {
+      "id": "F19",
+      "uid": "1DB0553A0103464498154B68BC191A3D76CE",
+      "change": {
+        "date": "07 AUG 2025",
+        "time": "22:01:50.1"
+      },
+      "husband_id": "I33",
+      "children_ids": [
+        "I31"
+      ],
+      "changedAt": "07 AUG 2025 22:01:50.1"
+    },
+    {
+      "id": "F21",
+      "uid": "EDE328BD3CDF514797A9B307CAE524669B25",
+      "change": {
+        "date": "27 AUG 2025",
+        "time": "01:23:30.4"
+      },
+      "object_id": "O2",
+      "husband_id": "I38",
+      "wife_id": "I39",
+      "status": "married",
+      "children_ids": [
+        "I35"
+      ],
+      "marriage": {
+        "date": "09 NOV 1833",
+        "place": "Меховое, Калужская обл., Россия, 249262",
+        "location_id": "L4",
+        "object_id": "O2"
+      },
+      "changedAt": "27 AUG 2025 01:23:30.4"
+    },
+    {
+      "id": "F2",
+      "uid": "EF838F7C06995D499426C0B6AE89B41EFB5A",
+      "change": {
+        "date": "27 AUG 2025",
+        "time": "01:23:28.1"
+      },
+      "husband_id": "I35",
+      "wife_id": "I37",
+      "status": "married",
+      "children_ids": [
+        "I34"
+      ],
+      "changedAt": "27 AUG 2025 01:23:28.1"
+    },
+    {
+      "id": "F3",
+      "uid": "92549271335AB7499A31C9B7019FB8263FA5",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "22:37:16.3"
+      },
+      "husband_id": "I34",
+      "status": "married",
+      "children_ids": [
+        "I32"
+      ],
+      "changedAt": "17 AUG 2025 22:37:16.3"
+    }
+  ],
+  "repositories": [
+    {
+      "id": "R1",
+      "uid": "BD6D5C61D63E4D4BB95C60F18D5AD383362B",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "15:49:04.5"
+      },
+      "name": "ЦГА Москвы",
+      "changedAt": "17 AUG 2025 15:49:04.5"
+    }
+  ],
+  "sources": [
+    {
+      "id": "S1",
+      "uid": "260992A6872F4B44AB51014C0AE97C57BB3F",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "18:42:37.4"
+      },
+      "abbreviation": "ЦГАМ Ф.203 Оп.782 Д.184. МК 1909 церквей Москвы",
+      "repository_id": "R1",
+      "author": "Московская духовная консистория",
+      "changedAt": "17 AUG 2025 18:42:37.4"
+    },
+    {
+      "id": "S3",
+      "uid": "FD2A06C6529F184A887D944D2A90B68521CC",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "18:41:14.3"
+      },
+      "abbreviation": "ГАРО Ф.627 Оп.252 Д.137 МК церквей г. Сапожка",
+      "author": "Рязанская духовная консистория",
+      "changedAt": "17 AUG 2025 18:41:14.3"
+    },
+    {
+      "id": "S4",
+      "uid": "86BC8BC509A6A443B07171E95C49DC294D46",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "18:41:47.1"
+      },
+      "abbreviation": "ГАРО Ф.627 Оп.271 Д.21 МК церквей г. Сапожка",
+      "author": "Рязанская духовная консистория",
+      "changedAt": "17 AUG 2025 18:41:47.1"
+    },
+    {
+      "id": "S5",
+      "uid": "64B220980E40D2499D16998184A36FAE4875",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "16:16:09.8"
+      },
+      "abbreviation": "ГАРО Ф.627 Оп.271 Д.26 МК церквей г. Сапожка за 1907 г",
+      "author": "Рязанская духовная консистория",
+      "changedAt": "17 AUG 2025 16:16:09.8"
+    },
+    {
+      "id": "S6",
+      "uid": "9BDF4E189DA13242ACF067825B1399F8167D",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "16:21:54.5"
+      },
+      "abbreviation": "ГАРО Ф.627 Оп.280 Д.473 МК церквей г. Сапожка",
+      "author": "Рязанская духовная консистория",
+      "changedAt": "17 AUG 2025 16:21:54.5"
+    },
+    {
+      "id": "S8",
+      "uid": "CA7C3159900A654E9CFC0C6F4682A66C0A82",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "18:42:19.6"
+      },
+      "abbreviation": "ЦГАМ Ф.2125 Оп.2 Д.10 МК 1907 церквей Пречистенского сорока",
+      "author": "Московская духовная консистория",
+      "changedAt": "17 AUG 2025 18:42:19.6"
+    },
+    {
+      "id": "S9",
+      "uid": "D6319F209A4CBA4081399CCA8FF9F6064ADB",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "18:42:44.4"
+      },
+      "abbreviation": "ГАРО Ф.627 Оп.252 Д.198 МК цервей г. Сапожка",
+      "author": "Рязанская духовная консистория",
+      "changedAt": "17 AUG 2025 18:42:44.4"
+    },
+    {
+      "id": "S10",
+      "uid": "B7B35B245B8D96468B256060E05C78B38412",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "18:33:56.8"
+      },
+      "abbreviation": "ГАРО Ф.627 Оп.271 Д.29 МК церквей г. Сапожка",
+      "author": "Рязанская духовная консистория",
+      "changedAt": "17 AUG 2025 18:33:56.8"
+    },
+    {
+      "id": "S4_2",
+      "uid": "A8C83160C9F7C744ABC7E2338DBF5DCFCB07",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "16:13:56.7"
+      },
+      "abbreviation": "ГАРО Ф.627 Оп.271 Д.21 МК церквей г. Сапожка",
+      "author": "Рязанская духовная консистория",
+      "changedAt": "17 AUG 2025 16:13:56.7"
+    },
+    {
+      "id": "S2",
+      "uid": "88CCB4B78A89384F9DB8E73922154390D83D",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "18:46:20.4"
+      },
+      "abbreviation": "ГАКО Ф.Ф-50 Оп.5 Д.3 МК 1833",
+      "author": "Калужская духовная консистория",
+      "changedAt": "17 AUG 2025 18:46:20.4"
+    },
+    {
+      "id": "S7",
+      "uid": "84460285025A6B44854366A5EEFC26D9182A",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "19:09:31.2"
+      },
+      "abbreviation": "ГАКО Ф.33 Оп.4 Д.127 МК 1846",
+      "author": "Калужская духовная консистория",
+      "changedAt": "17 AUG 2025 19:09:31.2"
+    },
+    {
+      "id": "S11",
+      "uid": "F3BE03FEA4D6164781E6B57BEF7B6A8C8023",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "19:11:53.5"
+      },
+      "abbreviation": "ГАКО Ф.33 Оп.6 Д.828 МК 1908",
+      "author": "Калужская духовная консистория",
+      "changedAt": "17 AUG 2025 19:11:53.5"
+    },
+    {
+      "id": "S12",
+      "uid": "22225AEE59C7DB4BB03270855BCD675F9721",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "19:15:52.9"
+      },
+      "abbreviation": "ГАРО Ф.627 Оп.249 Д.219 МК церквей Сапожка",
+      "author": "Рязанская духовная консистория",
+      "changedAt": "17 AUG 2025 19:15:52.9"
+    },
+    {
+      "id": "S13",
+      "uid": "066800057041F642AF313501D3D76EDD674E",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "19:53:42.3"
+      },
+      "abbreviation": "ГАКО Ф.33 Оп.12 Д.52 МК 1872",
+      "author": "Калужская духовная консистория",
+      "changedAt": "17 AUG 2025 19:53:42.3"
+    },
+    {
+      "id": "S14",
+      "uid": "001795F413A01A4CADF8C1AD68158D794FE0",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "19:57:29.1"
+      },
+      "abbreviation": "ГАКО Ф.Ф-33 Оп.6 Д.826 МК 1891",
+      "author": "Калужская духовная консистория",
+      "changedAt": "17 AUG 2025 19:57:29.1"
+    },
+    {
+      "id": "S15",
+      "uid": "44BDC1974E327546979E7DC45F953B0740E6",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "20:00:08.8"
+      },
+      "abbreviation": "ГАКО Ф.Ф-33 Оп.6 Д.1570 МК 1900",
+      "author": "Калужская духовная консистория",
+      "changedAt": "17 AUG 2025 20:00:08.8"
+    },
+    {
+      "id": "S17",
+      "uid": "AF26BFB64F68FA45A627B04442A4CCA3561B",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "20:04:41.4"
+      },
+      "abbreviation": "ГАКО Ф.Ф-33 Оп.6 Д.827 МК 1900",
+      "author": "Калужская духовная консистория",
+      "changedAt": "17 AUG 2025 20:04:41.4"
+    },
+    {
+      "id": "S18",
+      "uid": "AD2A3DB312CEB14BA7A6331330FCEA96E263",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "20:37:57.5"
+      },
+      "abbreviation": "ГАРО Ф.627 Оп.252 Д.249 МК 1864",
+      "author": "Рязанская духовная консистория",
+      "changedAt": "17 AUG 2025 20:37:57.5"
+    },
+    {
+      "id": "S19",
+      "uid": "1CB3EE7852F80740B802207883E64DC89665",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "22:09:54.5"
+      },
+      "abbreviation": "ГАКО Ф.Ф-33 Оп.6 Д.829 МК 1918",
+      "author": "Калужская духовная консистория",
+      "changedAt": "17 AUG 2025 22:09:54.5"
+    },
+    {
+      "id": "S20",
+      "uid": "650A978284ABA742AAF29F0DBA509EBE4EDE",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "22:12:25.3"
+      },
+      "abbreviation": "ГАКО Ф.Ф-33 Оп.4 Д.169 МК 1851",
+      "author": "Калужская духовная консистория",
+      "changedAt": "17 AUG 2025 22:12:25.3"
+    }
+  ],
+  "objects": [
+    {
+      "id": "O1",
+      "uid": "92FC52DFE3ABDF47A5EEE18B772331BBF8EE",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "18:43:20.6"
+      },
+      "source": {
+        "id": "S1",
+        "page": "81 об",
+        "quality": "3"
+      },
+      "file": {
+        "path": "stg:images/ЦГАМ Ф.203, Оп.782, Д.184 Аленкина Серафима Сергеевна, рождение, 27.12.1909.jpg",
+        "format": "jpg",
+        "type": "manuscript"
+      },
+      "title": "Аленкина Серафима Сергеевна, рождение, 1909",
+      "changedAt": "17 AUG 2025 18:43:20.6"
+    },
+    {
+      "id": "O3",
+      "uid": "AC711DDCE3928047B62DD9BA88B986E6756A",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "16:08:12.3"
+      },
+      "source": {
+        "id": "S3",
+        "page": "47 об",
+        "quality": "3"
+      },
+      "file": {
+        "path": "stg:images/ГАРяз.О_Ф627_252_137_047_2_048_1_цв.TIFF Аленкин Климентий Иванович, смерть в 60 лет от старости, 19.11.1851.tif",
+        "format": "tif",
+        "type": "manuscript"
+      },
+      "title": "Аленкин Климентий Иванович, смерть, 1851",
+      "changedAt": "17 AUG 2025 16:08:12.3"
+    },
+    {
+      "id": "O4",
+      "uid": "A8C83160C9F7C744ABC7E2338DBF5DCFCB07",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "16:13:56.7"
+      },
+      "source": {
+        "id": "S4",
+        "page": "197 об",
+        "quality": "3"
+      },
+      "file": {
+        "path": "stg:images/ГАРяз.О_Ф627_271_21_197_2_198_1_цв.TIFF Аленкин Сергей Иванович 06.07.1885 рождение.tif",
+        "format": "tif",
+        "type": "manuscript"
+      },
+      "title": "Аленкин Сергей Иванович, рождение, 1885",
+      "changedAt": "17 AUG 2025 16:13:56.7"
+    },
+    {
+      "id": "O5",
+      "uid": "31881B8A240D2643AFBBCA94CC8368067D5E",
+      "change": {
+        "date": "27 AUG 2025",
+        "time": "01:20:36.7"
+      },
+      "source": {
+        "id": "S5",
+        "page": "28 об",
+        "quality": "3"
+      },
+      "file": {
+        "path": "stg:images/ГАРяз.О_Ф627_271_25_028_2_029_1_цв.TIFF Аленкин Сергей Иванович, свадьба с Татьяной Косминичной Ивлевой, 17.10.1907.tif",
+        "format": "tif",
+        "type": "manuscript"
+      },
+      "title": "Свадьба Аленкин С.И. и Ивлиева Т.К., 1907",
+      "changedAt": "27 AUG 2025 01:20:36.7"
+    },
+    {
+      "id": "O6",
+      "uid": "CE0E293FF945674BAA0B8D871058D2A4DB8D",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "21:25:22"
+      },
+      "source": {
+        "id": "S6",
+        "page": "97 об",
+        "quality": "3"
+      },
+      "file": {
+        "path": "stg:images/ГАРяз.О_Ф627_280_473_097_2_098_1_цв. Свадьба Минаева Ивана Андреевича и Евдокии Семеновны, 20.09.1887 .tif",
+        "format": "tif",
+        "type": "manuscript"
+      },
+      "title": "Свадьба Минаев И.А. и Е.С. (фамилия не указана)",
+      "changedAt": "17 AUG 2025 21:25:22"
+    },
+    {
+      "id": "O7",
+      "uid": "86C1AFC4C533DC478C518F4711A25F48E23D",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "16:24:53.1"
+      },
+      "source": {
+        "id": "S6",
+        "page": "50 об",
+        "quality": "3"
+      },
+      "file": {
+        "path": "stg:images/ГАРяз.О_Ф627_280_473_050_2_051_1_цв. Минаев Минай Парамонович 14.09.1885 смерть в 77 от старости.tif",
+        "format": "tif",
+        "type": "manuscript"
+      },
+      "title": "Минаев Минай Парамонович, смерть, 1885",
+      "changedAt": "17 AUG 2025 16:24:53.1"
+    },
+    {
+      "id": "O9",
+      "uid": "4C88AE5613631A4E9A846B1CFE6F6E7BB197",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "18:24:35.4"
+      },
+      "source": {
+        "id": "S8",
+        "page": "30 об",
+        "quality": "3"
+      },
+      "file": {
+        "path": "stg:images/ЦГАМ Ф.2125 Оп.2 Д.10 Минаев Николай Иванович, рождение.jpeg",
+        "format": "jpeg",
+        "type": "manuscript"
+      },
+      "title": "Минаев Николай Иванович, рождение, 1907",
+      "changedAt": "17 AUG 2025 18:24:35.4"
+    },
+    {
+      "id": "O11",
+      "uid": "55A73F3504FB9F41B975ADC55021A6141A99",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "20:10:04"
+      },
+      "source": {
+        "id": "S10",
+        "page": "2 об",
+        "quality": "3"
+      },
+      "file": {
+        "path": "stg:images/ГАРяз.О_Ф627_271_29_002_2_003_1_цв.TIFF Ивлева Татьяна Косьминична 11.01.1885 рождение.tif",
+        "format": "tif",
+        "type": "manuscript"
+      },
+      "title": "Минаева (Ивлева) Татьяна Косьминична, рождение, 1885",
+      "changedAt": "17 AUG 2025 20:10:04"
+    },
+    {
+      "id": "O12",
+      "uid": "EC85A6453C95544486184F749DAD86968C16",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "18:37:44.9"
+      },
+      "source": {
+        "id": "S9",
+        "page": "16 об",
+        "quality": "3"
+      },
+      "file": {
+        "path": "stg:images/ГАРяз.О_Ф627_252_198_016_2_017_1_цв Аленкин Иоанн Николаевич, рождение, 12.11.1859 (запись №41) .TIFF.tif",
+        "format": "tif",
+        "type": "manuscript"
+      },
+      "title": "Аленкин Иван Николаевич, рождение, 1859",
+      "changedAt": "17 AUG 2025 18:37:44.9"
+    },
+    {
+      "id": "O2",
+      "uid": "A772DC475C9C15428403BAA5D49F45CDF637",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "21:32:18.6"
+      },
+      "source": {
+        "id": "S2",
+        "quality": "3"
+      },
+      "file": {
+        "path": "stg:images/Ф-50опись5дело3-0005 Епихин Федор Антонович, свадьба, 09.11.1833.jpg",
+        "format": "jpg",
+        "type": "manuscript"
+      },
+      "title": "Свадьба Епихина Ф.А. и Е.А. (фамилия не указана)",
+      "changedAt": "17 AUG 2025 21:32:18.6"
+    },
+    {
+      "id": "O8",
+      "uid": "1DB499DF3A2D524DA90202BCEF3DF9AC89BC",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "19:05:06.3"
+      },
+      "source": {
+        "id": "S2",
+        "quality": "3"
+      },
+      "file": {
+        "path": "stg:images/Ф-50опись5дело3-0001 Параскева Антоновна Синяева, 11.10.1833 рождение.jpg",
+        "format": "jpg",
+        "type": "manuscript"
+      },
+      "title": "Епихина (Синяева) Прасковья Антоновна",
+      "changedAt": "17 AUG 2025 19:05:06.3"
+    },
+    {
+      "id": "O10",
+      "uid": "AEC0AE1A10486E45A4CE0EDD0BEA680803B0",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "19:09:45.2"
+      },
+      "source": {
+        "id": "S7",
+        "page": "297 об",
+        "quality": "3"
+      },
+      "file": {
+        "path": "stg:images/Ф_33_4_127_299 Луняев Петр Максимович, рождение, 14.06.1846.jpg",
+        "format": "jpg",
+        "type": "manuscript"
+      },
+      "title": "Луняев Петр Максимович, рождение, 1846",
+      "changedAt": "17 AUG 2025 19:09:45.2"
+    },
+    {
+      "id": "O13",
+      "uid": "AF5796CD7728C44F89B4A7D224491B065F40",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "19:12:04.6"
+      },
+      "source": {
+        "id": "S11",
+        "page": "81 об",
+        "quality": "3"
+      },
+      "file": {
+        "path": "stg:images/Ф-33опись6дело828 Петр Максимович Луняев, 02.07.1908, смерть от водянки, 64 года.jpg",
+        "format": "jpg",
+        "type": "manuscript"
+      },
+      "title": "Луняев Петр Максимович, смерть, 1908",
+      "changedAt": "17 AUG 2025 19:12:04.6"
+    },
+    {
+      "id": "O14",
+      "uid": "8ACF911333C523428C10F7F7B5ECFFA226D6",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "19:20:45.5"
+      },
+      "source": {
+        "id": "S12",
+        "page": "410 об",
+        "quality": "3"
+      },
+      "file": {
+        "path": "stg:images/ГАРяз.О_Ф627_249_219_410_2_411_1_цв. Минаев Иван Андреевич 27.05.1869 рождение.tif",
+        "format": "tif",
+        "type": "manuscript"
+      },
+      "title": "Минаев Иван Андреевич, рождение, 1869",
+      "changedAt": "17 AUG 2025 19:20:45.5"
+    },
+    {
+      "id": "O15",
+      "uid": "5F683538E564384A8FE062D5E6BD5542DF60",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "19:53:51.9"
+      },
+      "source": {
+        "id": "S13",
+        "page": "207 об",
+        "quality": "3"
+      },
+      "file": {
+        "path": "stg:images/Ф_33_12_52_202 Василий Петрович Луняев, рождение, 21.04.1872.jpg",
+        "format": "jpg",
+        "type": "manuscript"
+      },
+      "title": "Луняев Василий Петрович, рождение, 1872",
+      "changedAt": "17 AUG 2025 19:53:51.9"
+    },
+    {
+      "id": "O16",
+      "uid": "A804A638BBDAD84BAFB0705A6EF6C8E77E98",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "19:57:44.3"
+      },
+      "source": {
+        "id": "S14",
+        "page": "135 об",
+        "quality": "3"
+      },
+      "file": {
+        "path": "stg:images/Ф-33опись6дело826-Свадьба Василия Петровича Луняева и Натальи Федоровны Епихиной, 20.10.1891.jpg",
+        "format": "jpg",
+        "type": "manuscript"
+      },
+      "title": "Свадьба Луняев В.П. и Епихина Н.Ф.",
+      "changedAt": "17 AUG 2025 19:57:44.3"
+    },
+    {
+      "id": "O17",
+      "uid": "8429129920A7904ABD348C2E639BE04ED03C",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "20:00:21.9"
+      },
+      "source": {
+        "id": "S15",
+        "page": "817 об",
+        "quality": "3"
+      },
+      "file": {
+        "path": "stg:images/2 Ф-33опись6дело1570 Рождение Дарьи Васильевны Луняевой 26.02.1900.jpg",
+        "format": "jpg",
+        "type": "manuscript"
+      },
+      "title": "Наумова (Луняева) Дарья Васильевна, рождение, 1900",
+      "changedAt": "17 AUG 2025 20:00:21.9"
+    },
+    {
+      "id": "O18",
+      "uid": "7302EEC8B2C43242AB2705CB6E8F6A082643",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "20:07:32.1"
+      },
+      "source": {
+        "id": "S17",
+        "page": "15 об",
+        "quality": "3"
+      },
+      "file": {
+        "path": "stg:images/5 Ф-33опись6дело827-Яков Степанович Наумов, рождение, 2.09.1900.jpg",
+        "format": "jpg",
+        "type": "manuscript"
+      },
+      "title": "Наумов Яков Степанович, рождение, 1900",
+      "changedAt": "17 AUG 2025 20:07:32.1"
+    },
+    {
+      "id": "O19",
+      "uid": "D7C9666855556B4FB64B7F9F19FF72C54087",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "20:38:08.4"
+      },
+      "source": {
+        "id": "S18",
+        "page": "54 об",
+        "quality": "3"
+      },
+      "file": {
+        "path": "stg:images/ГАРяз.О_Ф627_252_249_054_2_055_1_цв Ивлев Николай Дмитриевич,, смерть в 49 лет, 15.07.1864 (запись №25) .TIFF.tif",
+        "format": "tif",
+        "type": "manuscript"
+      },
+      "title": "Ивлиев Николай Дмитриевич",
+      "changedAt": "17 AUG 2025 20:38:08.4"
+    },
+    {
+      "id": "O20",
+      "uid": "6C2EEC8AA7644E4CBF6DDF1E628ADA18BCE9",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "20:39:33.4"
+      },
+      "file": {
+        "path": "stg:images/ГАРяз.О_Ф627_271_27_178_2_179_1_цв.TIFF Ивлев Косьма Николаевич и Евдокия Акимовна Карташева, свадьба, 10.11.1878.tif",
+        "format": "tif",
+        "type": "manuscript"
+      },
+      "title": "Свадьба Ивлиев К.Н. и Ивлиева Е.К.",
+      "changedAt": "17 AUG 2025 20:39:33.4"
+    },
+    {
+      "id": "O22",
+      "uid": "7DA49508972116448209EE62E22623F8CEBE",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "22:10:06"
+      },
+      "source": {
+        "id": "S19",
+        "page": "156 об",
+        "quality": "3"
+      },
+      "file": {
+        "path": "stg:images/5 Ф-33опись6дело829 Свадьба Якова Степанова Наумова и Дарьи Васильевны Луняевой, 06.05.1918.jpg",
+        "format": "jpg",
+        "type": "manuscript"
+      },
+      "title": "Свадьба Наумова Я.С и Луняевой Д.В.",
+      "changedAt": "17 AUG 2025 22:10:06"
+    },
+    {
+      "id": "O23",
+      "uid": "56837BDA372E3F4CB6999179B929341DAA0F",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "22:12:37.1"
+      },
+      "source": {
+        "id": "S20",
+        "page": "812 об",
+        "quality": "3"
+      },
+      "file": {
+        "path": "stg:images/ГАКО_33_4_169-0815 Свадьба Тимофея Ивановича Наумова и Хионы Лаврентьевны,  29.06.1851.jpg",
+        "format": "jpg",
+        "type": "manuscript"
+      },
+      "title": "Свадьба Наумов Т.И. и Х.Л.",
+      "changedAt": "17 AUG 2025 22:12:37.1"
+    }
+  ],
+  "locations": [
+    {
+      "id": "L1",
+      "uid": "F3B5F2BCDDE28845A8B80DA2ABD95D5D2F70",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "16:31:47.7"
+      },
+      "map": {
+        "latitude": 55.756872,
+        "longitude": 37.615053
+      },
+      "name": "Москва, Россия",
+      "changedAt": "17 AUG 2025 16:31:47.7"
+    },
+    {
+      "id": "L2",
+      "uid": "C4B371DE5E8CC647806F3522F610FC070CD0",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "18:25:54.7"
+      },
+      "map": {
+        "latitude": 54.758741,
+        "longitude": 39.638355
+      },
+      "name": "Бортное, Рязанская обл., Россия, 391130",
+      "changedAt": "17 AUG 2025 18:25:54.7"
+    },
+    {
+      "id": "L3",
+      "uid": "7FA55C1CF336904285B097C6A9A212FE84C3",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "18:47:56.5"
+      },
+      "map": {
+        "latitude": 53.950506,
+        "longitude": 40.67963
+      },
+      "name": "Сапожок, Рязанская обл., Россия, 391940",
+      "changedAt": "17 AUG 2025 18:47:56.5"
+    },
+    {
+      "id": "L4",
+      "uid": "D508350D62F12543AB747259B11777070A02",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "18:47:50.3"
+      },
+      "map": {
+        "latitude": 54.05989,
+        "longitude": 35.545795
+      },
+      "name": "Меховое, Калужская обл., Россия, 249262",
+      "changedAt": "17 AUG 2025 18:47:50.3"
+    },
+    {
+      "id": "L5",
+      "uid": "DCFC4ABD2ED63241AF32DD2CF6CF115C7263",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "18:51:44.8"
+      },
+      "map": {
+        "latitude": 54.848384,
+        "longitude": 36.015137
+      },
+      "name": "Маковцы, Калужская обл., Россия, 249861",
+      "changedAt": "17 AUG 2025 18:51:44.8"
+    },
+    {
+      "id": "L6",
+      "uid": "41F158DB6CE46544B70C7229FCDBB2BC0176",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "19:08:10.5"
+      },
+      "map": {
+        "latitude": 54.843141,
+        "longitude": 37.239501
+      },
+      "name": "Гурьево, Калужская обл., Россия, 249109",
+      "changedAt": "17 AUG 2025 19:08:10.5"
+    },
+    {
+      "id": "L8",
+      "uid": "8509550ACF37F249B39462A0753175DA6C50",
+      "change": {
+        "date": "17 AUG 2025",
+        "time": "21:21:15.4"
+      },
+      "name": "Митинское, Рязанская область",
+      "changedAt": "17 AUG 2025 21:21:15.4"
+    }
+  ],
+  "scans": {
+    "I13": [
+      {
+        "filename": "id13 ГАРяз.О Ф.627 Оп.280 Д.473 лл. 50 об. - 51 Смерть (77 лет) Минаев Минай Парамонович 14.09.1885.tif",
+        "path": "./scans/id13 ГАРяз.О Ф.627 Оп.280 Д.473 лл. 50 об. - 51 Смерть (77 лет) Минаев Минай Парамонович 14.09.1885.tif",
+        "score": 1.0,
+        "event_type": "death",
+        "matched_at": "2025-09-05T03:25:17.805606",
+        "auto_matched": true
+      }
+    ],
+    "I14": [
+      {
+        "filename": "id14 ГАРяз.О Ф.627 Оп.271 Д.21 лл. 197 об. - 198 Рождение Аленкин Сергей Иванович 06.07.1885.tif",
+        "path": "./scans/id14 ГАРяз.О Ф.627 Оп.271 Д.21 лл. 197 об. - 198 Рождение Аленкин Сергей Иванович 06.07.1885.tif",
+        "score": 1.0,
+        "event_type": "birth",
+        "matched_at": "2025-09-05T03:25:17.805640",
+        "auto_matched": true
+      },
+      {
+        "filename": "ГАРяз.О Ф.627 Оп. 271 Д.25 лл.28 об. - 29 Свадьба id14 Аленкин Сергей Иванович и id15 Ивлиева Татьяна Косминична 17.10.1907.tif",
+        "path": "./scans/ГАРяз.О Ф.627 Оп. 271 Д.25 лл.28 об. - 29 Свадьба id14 Аленкин Сергей Иванович и id15 Ивлиева Татьяна Косминична 17.10.1907.tif",
+        "score": 1.0,
+        "event_type": "marriage",
+        "matched_at": "2025-09-05T03:25:17.805759",
+        "auto_matched": true
+      }
+    ],
+    "I15": [
+      {
+        "filename": "id15 ГАРяз.О Ф.627 Оп.271 Д.29 лл.2 об. - 3 Рождение Ивлиева Татьяна Косьминична 11.01.1885.tif",
+        "path": "./scans/id15 ГАРяз.О Ф.627 Оп.271 Д.29 лл.2 об. - 3 Рождение Ивлиева Татьяна Косьминична 11.01.1885.tif",
+        "score": 1.0,
+        "event_type": "birth",
+        "matched_at": "2025-09-05T03:25:17.805649",
+        "auto_matched": true
+      }
+    ],
+    "I16": [
+      {
+        "filename": "id16 ГАРяз.О Ф. 627 Оп. 252 Д. 198 лл. 16 об - 17 Рождение Аленкин Иван Николаевич 12.11.1859 (запись №41) .TIFF.tif",
+        "path": "./scans/id16 ГАРяз.О Ф. 627 Оп. 252 Д. 198 лл. 16 об - 17 Рождение Аленкин Иван Николаевич 12.11.1859 (запись №41) .TIFF.tif",
+        "score": 1.0,
+        "event_type": "birth",
+        "matched_at": "2025-09-05T03:25:17.805655",
+        "auto_matched": true
+      }
+    ],
+    "I18": [
+      {
+        "filename": "id18 ГАРяз.О Ф. 627 Оп. 252 Д. 137 лл. 047 об - 048 Смерть (60 лет) Аленкин Климентий Иванович 19.11.1851.tif",
+        "path": "./scans/id18 ГАРяз.О Ф. 627 Оп. 252 Д. 137 лл. 047 об - 048 Смерть (60 лет) Аленкин Климентий Иванович 19.11.1851.tif",
+        "score": 1.0,
+        "event_type": "death",
+        "matched_at": "2025-09-05T03:25:17.805662",
+        "auto_matched": true
+      }
+    ],
+    "I21": [
+      {
+        "filename": "id21 ГАРяз.О Ф.627 Оп.252 Д. 249 лл. 54 об. - 55 Смерть (49 лет) Ивлев Николай Дмитриевич 15.07.1864 (запись №25) .TIFF.tif",
+        "path": "./scans/id21 ГАРяз.О Ф.627 Оп.252 Д. 249 лл. 54 об. - 55 Смерть (49 лет) Ивлев Николай Дмитриевич 15.07.1864 (запись №25) .TIFF.tif",
+        "score": 1.0,
+        "event_type": "death",
+        "matched_at": "2025-09-05T03:25:17.805669",
+        "auto_matched": true
+      }
+    ],
+    "I23": [
+      {
+        "filename": "id23 ГАКО Ф.Ф-33 Оп.6 Д.827 Рождение Яков Степанович Наумов 02.09.1900.jpg",
+        "path": "./scans/id23 ГАКО Ф.Ф-33 Оп.6 Д.827 Рождение Яков Степанович Наумов 02.09.1900.jpg",
+        "score": 1.0,
+        "event_type": "birth",
+        "matched_at": "2025-09-05T03:25:17.805675",
+        "auto_matched": true
+      },
+      {
+        "filename": "ГАКО Ф.Ф-33 Оп. 6 Д. 829 Свадьба id23 Наумов Яков Степанович и id30 Дарья Васильевна Луняева 06.05.1918.jpg",
+        "path": "./scans/ГАКО Ф.Ф-33 Оп. 6 Д. 829 Свадьба id23 Наумов Яков Степанович и id30 Дарья Васильевна Луняева 06.05.1918.jpg",
+        "score": 1.0,
+        "event_type": "marriage",
+        "matched_at": "2025-09-05T03:25:17.805739",
+        "auto_matched": true
+      }
+    ],
+    "I30": [
+      {
+        "filename": "id30 ГАКО Ф.Ф-33 Оп. 6 Д. 1570 Рождение Наумова (Луняева) Дарья Васильевна 26.02.1900.jpg",
+        "path": "./scans/id30 ГАКО Ф.Ф-33 Оп. 6 Д. 1570 Рождение Наумова (Луняева) Дарья Васильевна 26.02.1900.jpg",
+        "score": 1.0,
+        "event_type": "birth",
+        "matched_at": "2025-09-05T03:25:17.805681",
+        "auto_matched": true
+      }
+    ],
+    "I31": [
+      {
+        "filename": "id31 ГАКО Ф.Ф-33 Оп.12 Д.52 Рождение Василий Петрович Луняев 21.04.1872.jpg",
+        "path": "./scans/id31 ГАКО Ф.Ф-33 Оп.12 Д.52 Рождение Василий Петрович Луняев 21.04.1872.jpg",
+        "score": 1.0,
+        "event_type": "birth",
+        "matched_at": "2025-09-05T03:25:17.805687",
+        "auto_matched": true
+      },
+      {
+        "filename": "ГАКО Ф.Ф-33 Оп.6 Д.826 Свадьба id31 Луняев Василий Петрович и id32 Епихина Наталья Федоровна 20.10.1891.jpg",
+        "path": "./scans/ГАКО Ф.Ф-33 Оп.6 Д.826 Свадьба id31 Луняев Василий Петрович и id32 Епихина Наталья Федоровна 20.10.1891.jpg",
+        "score": 1.0,
+        "event_type": "marriage",
+        "matched_at": "2025-09-05T03:25:17.805747",
+        "auto_matched": true
+      }
+    ],
+    "I33": [
+      {
+        "filename": "id33 ГАКО Ф.Ф-33 Оп.4 Д.127 Рождение Луняев Петр Максимович 14.06.1846.jpg",
+        "path": "./scans/id33 ГАКО Ф.Ф-33 Оп.4 Д.127 Рождение Луняев Петр Максимович 14.06.1846.jpg",
+        "score": 1.0,
+        "event_type": "birth",
+        "matched_at": "2025-09-05T03:25:17.805696",
+        "auto_matched": true
+      },
+      {
+        "filename": "id33 ГАКО Ф.Ф-33 Оп.6 Д.828 Смерть (64 года) Петр Максимович Луняев 02.07.1908.jpg",
+        "path": "./scans/id33 ГАКО Ф.Ф-33 Оп.6 Д.828 Смерть (64 года) Петр Максимович Луняев 02.07.1908.jpg",
+        "score": 1.0,
+        "event_type": "death",
+        "matched_at": "2025-09-05T03:25:17.805702",
+        "auto_matched": true
+      }
+    ],
+    "I37": [
+      {
+        "filename": "id37 ГАКО Ф.Ф-50 Оп.5 Д.3 Рождение Параскева Антоновна Синяева 11.10.1833.jpg",
+        "path": "./scans/id37 ГАКО Ф.Ф-50 Оп.5 Д.3 Рождение Параскева Антоновна Синяева 11.10.1833.jpg",
+        "score": 1.0,
+        "event_type": "birth",
+        "matched_at": "2025-09-05T03:25:17.805708",
+        "auto_matched": true
+      }
+    ],
+    "I7": [
+      {
+        "filename": "id7 ЦГАМ Ф.2125 Оп.2 Д.10 Рождение Минаев Николай Иванович.jpeg",
+        "path": "./scans/id7 ЦГАМ Ф.2125 Оп.2 Д.10 Рождение Минаев Николай Иванович.jpeg",
+        "score": 1.0,
+        "event_type": "birth",
+        "matched_at": "2025-09-05T03:25:17.805715",
+        "auto_matched": true
+      }
+    ],
+    "I8": [
+      {
+        "filename": "id8 ЦГАМ Ф.203 Оп.782 Д.184 Рождение Аленкина Серафима Сергеевна 27.12.1909.jpg",
+        "path": "./scans/id8 ЦГАМ Ф.203 Оп.782 Д.184 Рождение Аленкина Серафима Сергеевна 27.12.1909.jpg",
+        "score": 1.0,
+        "event_type": "birth",
+        "matched_at": "2025-09-05T03:25:17.805721",
+        "auto_matched": true
+      }
+    ],
+    "I9": [
+      {
+        "filename": "id9 ГАРяз.О Ф.627 Оп.249 Д.219 лл. 410 об. - 411 Рождение Минаев Иван Андреевич 27.05.1869.tif",
+        "path": "./scans/id9 ГАРяз.О Ф.627 Оп.249 Д.219 лл. 410 об. - 411 Рождение Минаев Иван Андреевич 27.05.1869.tif",
+        "score": 1.0,
+        "event_type": "birth",
+        "matched_at": "2025-09-05T03:25:17.805727",
+        "auto_matched": true
+      },
+      {
+        "filename": "ГАРяз.О Ф.627 Оп.280 Д.473 лл. 97 об. - 98 Свадьба id9 Минаев Иван Андреевич и id10 Евдокия Семеновна 20.09.1887 .tif",
+        "path": "./scans/ГАРяз.О Ф.627 Оп.280 Д.473 лл. 97 об. - 98 Свадьба id9 Минаев Иван Андреевич и id10 Евдокия Семеновна 20.09.1887 .tif",
+        "score": 1.0,
+        "event_type": "marriage",
+        "matched_at": "2025-09-05T03:25:17.805771",
+        "auto_matched": true
+      }
+    ],
+    "I25": [
+      {
+        "filename": "ГАКО Ф.Ф-33 Оп. 4 Д. 169 Л. 0815 Свадьба  id25 Наумов Тимофей Иванович и id26 Наумова Хиония Лаврентьевна 29.06.1851.jpg",
+        "path": "./scans/ГАКО Ф.Ф-33 Оп. 4 Д. 169 Л. 0815 Свадьба  id25 Наумов Тимофей Иванович и id26 Наумова Хиония Лаврентьевна 29.06.1851.jpg",
+        "score": 1.0,
+        "event_type": "marriage",
+        "matched_at": "2025-09-05T03:25:17.805733",
+        "auto_matched": true
+      }
+    ],
+    "I38": [
+      {
+        "filename": "ГАКО Ф.Ф-50 Оп.5 Д.3 Свадьба id38 Епихин Федор Антонович и id39 Ефимья Аверьяновна 09.11.1833.jpg",
+        "path": "./scans/ГАКО Ф.Ф-50 Оп.5 Д.3 Свадьба id38 Епихин Федор Антонович и id39 Ефимья Аверьяновна 09.11.1833.jpg",
+        "score": 1.0,
+        "event_type": "marriage",
+        "matched_at": "2025-09-05T03:25:17.805754",
+        "auto_matched": true
+      }
+    ],
+    "I19": [
+      {
+        "filename": "ГАРяз.О Ф.627 Оп.271 Д.27 лл. 178 об. - 179 id19 Ивлиев Косьма Николаевич и id22 Карташева Евдокия Акимовна 10.11.1878.tif",
+        "path": "./scans/ГАРяз.О Ф.627 Оп.271 Д.27 лл. 178 об. - 179 id19 Ивлиев Косьма Николаевич и id22 Карташева Евдокия Акимовна 10.11.1878.tif",
+        "score": 1.0,
+        "event_type": "unknown",
+        "matched_at": "2025-09-05T03:25:17.805765",
+        "auto_matched": true
+      }
+    ]
+  },
+  "metadata": {
+    "last_scan_match": "2025-09-05T03:25:17.805776",
+    "scan_statistics": {
+      "total_files": 22,
+      "matched_files": 0,
+      "unmatched_files": 0,
+      "multiple_candidates": 22
+    }
+  }
+}
+
+            // Функция для загрузки данных (упрощённая версия, использует встроенные данные)
+            async function loadGedcomFile() {
+                // Используем данные, которые уже загружены в familyData
+                return new Promise((resolve) => {
+                    // Небольшая задержка для симуляции загрузки
+                    setTimeout(() => {
+                        resolve(true);
+                    }, 100);
+                });
+            }
+
+            // Функция для парсинга дат GEDCOM
+            function parseGedcomDate(dateStr) {
+                // Простой парсер для основных форматов дат GEDCOM
+                const patterns = [
+                    /^(\d{1,2})\s+(\w{3})\s+(\d{4})$/, // 15 MAR 1890
+                    /^(\d{4})$/, // 1890
+                    /^(\w{3})\s+(\d{4})$/ // MAR 1890
+                ];
+
+                const months = {
+                    'JAN': '01', 'FEB': '02', 'MAR': '03', 'APR': '04',
+                    'MAY': '05', 'JUN': '06', 'JUL': '07', 'AUG': '08',
+                    'SEP': '09', 'OCT': '10', 'NOV': '11', 'DEC': '12'
+                };
+
+                for (const pattern of patterns) {
+                    const match = dateStr.match(pattern);
+                    if (match) {
+                        if (match.length === 4) { // DD MMM YYYY
+                            const day = match[1].padStart(2, '0');
+                            const month = months[match[2]];
+                            const year = match[3];
+                            return `${year}-${month}-${day}`;
+                        } else if (match.length === 2) { // YYYY
+                            return `${match[1]}-01-01`;
+                        } else if (match.length === 3) { // MMM YYYY
+                            const month = months[match[1]];
+                            const year = match[2];
+                            return `${year}-${month}-01`;
+                        }
+                    }
+                }
+                return dateStr; // Возвращаем как есть, если не распознали
+            }
+
+            // Форматирование GEDCOM-даты в человекочитаемый русский формат
+            function formatGedcomToRu(dateStr) {
+                if (!dateStr) return '-';
+                const iso = parseGedcomDate(String(dateStr));
+                const d = new Date(iso);
+                if (isNaN(d)) {
+                    // Если не удалось распарсить, пробуем только год
+                    const year = String(dateStr).match(/\d{4}/);
+                    return year ? `${year[0]} г.` : String(dateStr);
+                }
+                return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }) + ' г.';
+            }
+
+            // Диапазон лет жизни, например: (1865-1920) или (1895-н.в.)
+            function lifeYearsSpan(person) {
+                if (!person) return '';
+                const by = person.birth && person.birth.date ? new Date(parseGedcomDate(person.birth.date)).getFullYear() : null;
+                const dy = person.death && person.death.date ? new Date(parseGedcomDate(person.death.date)).getFullYear() : null;
+                if (by || dy) {
+                    const left = by ? by : '—';
+                    const right = dy ? dy : 'н.в.';
+                    return ` (${left}-${right})`;
+                }
+                return '';
+            }
+
+            // Функция для загрузки сканов (теперь загружается из JSON)
+            function loadScansFromDirectory() {
+                // Сканы уже загружены из JSON файла
+                if (!familyData.scans) {
+                    familyData.scans = {};
+                }
+                console.log('Загружено сканов для людей:', Object.keys(familyData.scans).length);
+            }
+
+            // Элементы DOM
+            const calendarEl = document.getElementById('calendar');
+            const titleEl = document.getElementById('title');
+            const prevBtn = document.getElementById('prev');
+            const nextBtn = document.getElementById('next');
+            const todayBtn = document.getElementById('today');
+            const viewSelect = document.getElementById('view-select');
+            const calSystemRadios = document.querySelectorAll('input[name="cal-system"]');
+            const currentDateInput = document.getElementById('current-date');
+            const familySearchInput = document.getElementById('family-search');
+            const ctaStartBtn = document.getElementById('cta-start');
+            const statusEl = document.getElementById('status');
+            const months = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+            const weekdays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+
+            // Устанавливаем текущую дату в input при загрузке
+            currentDateInput.value = new Date().toISOString().split('T')[0];
+
+            // Модальное окно
+            const modal = document.getElementById('day-modal');
+            const modalTitleEl = document.getElementById('modal-title');
+            const modalBodyEl = document.getElementById('modal-body');
+            const modalCloseBtn = document.getElementById('modal-close');
+            const familyTreeEl = document.getElementById('family-tree');
+            const scanListEl = document.getElementById('scan-list');
+
+            // Текущее состояние
+            let currentView = viewSelect.value;
+            let currentSystem = 'greg';
+            let currentDate = new Date();
+            let currentFamilyFilter = '';
+            let filteredIndividuals = [];
+
+            // Функция для получения человека по ID
+            function getPerson(id) {
+                return familyData.individuals.find(p => p.id === id);
+            }
+
+            // Функция для отображения модального окна с информацией о человеке
+            function showPersonModal(person) {
+                try {
+                    const modal = document.getElementById('person-modal');
+                    const modalContent = modal.querySelector('.modal-content');
+                    
+                    if (!modal || !modalContent) {
+                        showErrorNotification('Ошибка: модальное окно не найдено');
+                        return;
+                    }
+                    
+                    // Получаем супругов
+                    const spouses = getSpousesForPerson(person.id);
+                    const spouseInfo = spouses.length > 0 ? 
+                        `<p><strong>Супруг(а):</strong> ${spouses.map(s => s.nameParts.given + ' ' + (s.nameParts.patronymic || '') + ' ' + (s.nameParts.surname || s.nameParts.marriedSurname || '')).join(', ')}</p>` : '';
+                    
+                    // Получаем детей (обновлено)
+                    const children = getChildren(person.id);
+                    const childrenInfo = children.length > 0 ? 
+                        `<p><strong>Дети:</strong> ${children.map(child => child.nameParts.given + ' ' + (child.nameParts.patronymic || '') + ' ' + (child.nameParts.surname || child.nameParts.marriedSurname || '')).join(', ')}</p>` : '';
+                    
+                    // Получаем родителей (обновлено)
+                    const parents = getParents(person.id);
+                    const parentsInfo = parents.length > 0 ? 
+                        `<p><strong>Родители:</strong> ${parents.map(parent => parent.nameParts.given + ' ' + (parent.nameParts.patronymic || '') + ' ' + (parent.nameParts.surname || parent.nameParts.marriedSurname || '')).join(', ')}</p>` : '';
+                    
+                    // Получаем сканы
+                    const scans = familyData.scans[person.id] || [];
+                    const scansInfo = scans.length > 0 ? 
+                        `<p><strong>Документы:</strong></p><ul>${scans.map(scan => {
+                            const scanPath = typeof scan === 'string' ? scan : scan.path;
+                            const scanName = typeof scan === 'string' ? scan.split('/').pop() : scan.filename;
+                            return `<li><a href="${scanPath}" target="_blank">${scanName}</a></li>`;
+                        }).join('')}</ul>` : '';
+                    
+                    modalContent.innerHTML = `
+                        <div class="person-header">
+                            <h2>${person.name.full || 'Неизвестно'}</h2>
+                            <span class="person-id">ID: ${person.id}</span>
+                        </div>
+                        
+                        <div class="person-info">
+                            <div class="info-section">
+                                <h3>📋 Основная информация</h3>
+                                <div class="info-grid">
+                                    <div class="info-item">
+                                        <span class="label">Пол:</span>
+                                        <span class="value">${person.sex || 'Неизвестно'}</span>
+                                    </div>
+                                    ${person.nameParts.given ? `
+                                    <div class="info-item">
+                                        <span class="label">Имя:</span>
+                                        <span class="value">${person.nameParts.given}</span>
+                                    </div>` : ''}
+                                    ${person.nameParts.patronymic ? `
+                                    <div class="info-item">
+                                        <span class="label">Отчество:</span>
+                                        <span class="value">${person.nameParts.patronymic}</span>
+                                    </div>` : ''}
+                                    ${person.nameParts.surname ? `
+                                    <div class="info-item">
+                                        <span class="label">Фамилия:</span>
+                                        <span class="value">${person.nameParts.surname}</span>
+                                    </div>` : ''}
+                                    ${person.nameParts.marriedSurname ? `
+                                    <div class="info-item">
+                                        <span class="label">Фамилия (замуж.):</span>
+                                        <span class="value">${person.nameParts.marriedSurname}</span>
+                                    </div>` : ''}
+                                    ${person.changedAt ? `
+                                    <div class="info-item">
+                                        <span class="label">Изменено:</span>
+                                        <span class="value">${person.changedAt}</span>
+                                    </div>` : ''}
+                                </div>
+                            </div>
+                            
+                            <div class="info-section">
+                                <h3>🎂 Рождение</h3>
+                                <div class="info-grid">
+                                    ${person.birth && person.birth.date ? `
+                                    <div class="info-item">
+                                        <span class="label">Дата рождения:</span>
+                                        <span class="value">${formatGedcomToRu(person.birth.date)}</span>
+                                    </div>` : ''}
+                                    ${person.birth && person.birth.place ? `
+                                    <div class="info-item">
+                                        <span class="label">Место рождения:</span>
+                                        <span class="value">${person.birth.place}</span>
+                                    </div>` : ''}
+                                    ${(!person.birth || (!person.birth.date && !person.birth.place)) ? `
+                                    <div class="info-item">
+                                        <span class="value" style="font-style: italic; color: #666;">Информация о рождении отсутствует</span>
+                                    </div>` : ''}
+                                </div>
+                            </div>
+                            
+                            ${person.death && (person.death.date || person.death.place) ? `
+                            <div class="info-section">
+                                <h3>🕊️ Кончина</h3>
+                                <div class="info-grid">
+                                    ${person.death.date ? `
+                                    <div class="info-item">
+                                        <span class="label">Дата смерти:</span>
+                                        <span class="value">${formatGedcomToRu(person.death.date)}</span>
+                                    </div>` : ''}
+                                    ${person.death.place ? `
+                                    <div class="info-item">
+                                        <span class="label">Место смерти:</span>
+                                        <span class="value">${person.death.place}</span>
+                                    </div>` : ''}
+                                    ${!person.death.date && !person.death.place ? `
+                                    <div class="info-item">
+                                        <span class="value" style="font-style: italic; color: #666;">Информация о смерти отсутствует</span>
+                                    </div>` : ''}
+                                </div>
+                            </div>
+                            ` : `
+                            <div class="info-section">
+                                <h3>🕊️ Кончина</h3>
+                                <div class="info-grid">
+                                    <div class="info-item">
+                                        <span class="value" style="font-style: italic; color: #666;">Информация отсутствует или человек жив</span>
+                                    </div>
+                                </div>
+                            </div>
+                            `}
+                            
+                            <div class="info-section">
+                                <h3>💑 Браки</h3>
+                                <div class="family-info">
+                                    ${person.marriages && person.marriages.length > 0 ? 
+                                        person.marriages.map(marriage => {
+                                            const spouse = getPerson(marriage.spouseId);
+                                            const spouseName = spouse ? spouse.nameParts.given + ' ' + (spouse.nameParts.patronymic || '') + ' ' + (spouse.nameParts.surname || spouse.nameParts.marriedSurname || '') : 'Неизвестно';
+                                            const marriageDate = marriage.date ? ' (' + formatGedcomToRu(marriage.date) + ')' : '';
+                                            const marriagePlace = marriage.place ? ' в ' + marriage.place : '';
+                                            return `<p>С ${spouseName}${marriageDate}${marriagePlace}</p>`;
+                                        }).join('') 
+                                        : '<p style="font-style: italic; color: #666;">Информация о браках отсутствует</p>'
+                                    }
+                                </div>
+                            </div>
+                            
+                            <div class="info-section">
+                                <h3>👨‍👩‍👧‍👦 Родители</h3>
+                                <div class="family-info">
+                                    ${parents.length > 0 ? 
+                                        parents.map(parent => {
+                                            const parentName = parent.nameParts.given + ' ' + (parent.nameParts.patronymic || '') + ' ' + (parent.nameParts.surname || parent.nameParts.marriedSurname || '');
+                                            const years = parent.birth && parent.birth.date ? ' (' + formatGedcomToRu(parent.birth.date) + (parent.death && parent.death.date ? '-' + formatGedcomToRu(parent.death.date) : '') + ')' : '';
+                                            return `<p>${parentName}${years}</p>`;
+                                        }).join('')
+                                        : '<p style="font-style: italic; color: #666;">Информация о родителях отсутствует</p>'
+                                    }
+                                </div>
+                            </div>
+                            
+                            <div class="info-section">
+                                <h3>👶 Дети</h3>
+                                <div class="family-info">
+                                    ${children.length > 0 ? 
+                                        children.map(child => {
+                                            const childName = child.nameParts.given + ' ' + (child.nameParts.patronymic || '') + ' ' + (child.nameParts.surname || child.nameParts.marriedSurname || '');
+                                            const years = child.birth && child.birth.date ? ' (' + formatGedcomToRu(child.birth.date) + (child.death && child.death.date ? '-' + formatGedcomToRu(child.death.date) : '') + ')' : '';
+                                            return `<p>${childName}${years}</p>`;
+                                        }).join('')
+                                        : '<p style="font-style: italic; color: #666;">Информация о детях отсутствует</p>'
+                                    }
+                                </div>
+                            </div>
+                            
+                            <div class="info-section">
+                                <h3>📄 Документы</h3>
+                                <div class="documents-info">
+                                    ${scans.length > 0 ? `
+                                        <div class="documents-grid">
+                                            ${scans.map(scan => {
+                                                const scanPath = typeof scan === 'string' ? scan : scan.path;
+                                                const scanName = typeof scan === 'string' ? scan.split('/').pop() : scan.filename;
+                                                const eventType = scan.event_type ? ` (${scan.event_type === 'birth' ? 'рождение' : scan.event_type === 'death' ? 'смерть' : scan.event_type === 'marriage' ? 'брак' : scan.event_type})` : '';
+                                                const score = scan.score ? ` - точность ${Math.round(scan.score * 100)}%` : '';
+                                                return `
+                                                    <div class="document-item">
+                                                        <a href="${scanPath}" target="_blank" class="document-link">
+                                                            <div class="document-icon">📄</div>
+                                                            <div class="document-info">
+                                                                <div class="document-name">${scanName}</div>
+                                                                <div class="document-meta">${eventType}${score}</div>
+                                                            </div>
+                                                        </a>
+                                                    </div>
+                                                `;
+                                            }).join('')}
+                                        </div>
+                                    ` : '<p style="font-style: italic; color: #666;">Документы отсутствуют</p>'}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    modal.classList.add('open');
+                } catch (error) {
+                    console.error('Ошибка отображения модального окна:', error);
+                    showErrorNotification('Ошибка отображения информации о человеке');
+                }
+            }
+
+            // Функция для показа уведомлений об ошибках
+            function showErrorNotification(message) {
+                const notification = document.createElement('div');
+                notification.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: #ff6b6b;
+                    color: white;
+                    padding: 15px 20px;
+                    border-radius: 5px;
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    z-index: 10000;
+                    max-width: 300px;
+                    font-size: 14px;
+                `;
+                notification.textContent = message;
+                document.body.appendChild(notification);
+                
+                // Автоматически скрыть через 5 секунд
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 5000);
+                
+                // Скрыть по клику
+                notification.addEventListener('click', () => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                });
+            }
+
+            // Функция для получения всех супругов человека
+            function getSpousesForPerson(personId) {
+                const spouses = [];
+                familyData.families.forEach(family => {
+                    if (family.husband_id === personId && family.wife_id) {
+                        const wife = getPerson(family.wife_id);
+                        if (wife) spouses.push(wife);
+                    } else if (family.wife_id === personId && family.husband_id) {
+                        const husband = getPerson(family.husband_id);
+                        if (husband) spouses.push(husband);
+                    }
+                });
+                return spouses;
+            }
+
+            // Функция для получения детей
+            function getChildren(personId) {
+                const children = new Set();
+                familyData.families.forEach(family => {
+                    if ((family.husband_id === personId || family.wife_id === personId) && family.children_ids) {
+                        family.children_ids.forEach(childId => {
+                            const child = getPerson(childId);
+                            if (child) children.add(child);
+                        });
+                    }
+                });
+                return Array.from(children);
+            }
+
+            // Функция для получения родителей
+            function getParents(personId) {
+                const parents = [];
+                const person = getPerson(personId);
+                if (!person || !person.child_in_family_id) return [];
+
+                const family = familyData.families.find(f => f.id === person.child_in_family_id);
+                if (family) {
+                    if (family.husband_id) {
+                        const father = getPerson(family.husband_id);
+                        if (father) parents.push(father);
+                    }
+                    if (family.wife_id) {
+                        const mother = getPerson(family.wife_id);
+                        if (mother) parents.push(mother);
+                    }
+                }
+                return parents;
+            }
+
+            // Функция для получения родителя (обновлена, чтобы использовать getParents)
+            function getParent(personId, type) {
+                const parents = getParents(personId);
+                if (type === 'father') {
+                    return parents.find(p => p.sex === 'M');
+                }
+                if (type === 'mother') {
+                    return parents.find(p => p.sex === 'F');
+                }
+                return null;
+            }
+
+            // Функция для получения всех связанных лиц (для фильтрации)
+            function getRelatedPeople(personId, level = 0, related = new Set()) {
+                if (level > 2) return related;
+                const person = getPerson(personId);
+                if (!person || related.has(personId)) return related;
+
+                related.add(personId);
+                
+                // Дети
+                getChildren(personId).forEach(child => getRelatedPeople(child.id, level + 1, related));
+                // Родители
+                getParents(personId).forEach(parent => getRelatedPeople(parent.id, level + 1, related));
+                // Супруги
+                getSpousesForPerson(personId).forEach(spouse => getRelatedPeople(spouse.id, level + 1, related));
+
+                return related;
+            }
+
+            // Функция для расчета разности между юлианским и григорианским календарями
+            function getCalendarDifference(year) {
+                // Формула для расчета разности: (год / 100) - (год / 400) - 2
+                // Но упрощенная версия для исторических дат:
+                if (year >= 1900) return 13;
+                if (year >= 1800) return 12;
+                if (year >= 1700) return 11;
+                if (year >= 1600) return 10;
+                if (year >= 1500) return 9;
+                if (year >= 1400) return 8;
+                if (year >= 1300) return 7;
+                return 6; // для более ранних дат
+            }
+            
+            // Функция для преобразования даты (Григорианский -> Юлианский)
+            function toJulian(date) {
+                const julianDate = new Date(date);
+                const diff = getCalendarDifference(date.getFullYear());
+                julianDate.setDate(julianDate.getDate() - diff);
+                return julianDate;
+            }
+            
+            // Функция для преобразования даты (Юлианский -> Григорианский)
+            function toGregorian(date) {
+                const gregorianDate = new Date(date);
+                const diff = getCalendarDifference(date.getFullYear());
+                gregorianDate.setDate(gregorianDate.getDate() + diff);
+                return gregorianDate;
+            }
+            
+            // Функция для преобразования даты в зависимости от выбранного календаря
+            function convertDateForDisplay(originalDate, targetSystem) {
+                if (!originalDate || !(originalDate instanceof Date)) return originalDate;
+                
+                // Предполагаем, что исходные даты в данных - григорианские
+                if (targetSystem === 'julian') {
+                    return toJulian(originalDate);
+                }
+                return originalDate; // григорианский календарь - без изменений
+            }
+
+            // Русская форма слова "год"
+            function pluralYears(n) {
+                const mod10 = n % 10;
+                const mod100 = n % 100;
+                if (mod10 === 1 && mod100 !== 11) return 'год';
+                if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'года';
+                return 'лет';
+            }
+
+            // Человекочитаемая подпись события на заданную дату
+            function getEventLabel(event, onDate) {
+                const person = getPerson(event.id);
+                // Используем оригинальную дату для расчета лет
+                const eventDate = event.date || event.displayDate;
+                const years = onDate.getFullYear() - eventDate.getFullYear();
+                
+                if (event.type === 'birth') {
+                    if (person && person.death && person.death.date) {
+                        return `Со дня рождения ${years} ${pluralYears(years)}`;
+                    }
+                    return `День рождения — исполняется ${years} ${pluralYears(years)}`;
+                }
+                if (event.type === 'death') {
+                    return `День памяти — ${years} ${pluralYears(years)} назад`;
+                }
+                if (event.type === 'marriage') {
+                    if (event.spouseId) {
+                        const spouse = getPerson(event.spouseId);
+                        const spouseName = spouse && spouse.nameParts ? `${spouse.nameParts.given || ''} ${spouse.nameParts.patronymic || ''} ${spouse.nameParts.surname || spouse.nameParts.marriedSurname || ''}`.trim() : 'Неизвестно';
+                        return `День бракосочетания с ${spouseName} — ${years} ${pluralYears(years)} назад`;
+                    }
+                    return `День бракосочетания — ${years} ${pluralYears(years)} назад`;
+                }
+                return '';
+            }
+
+            // Унифицированный формат дат для JS Date -> «6 июля 1885 г.»
+            function formatDateRu(date) {
+                if (!(date instanceof Date) || isNaN(date)) return '';
+                return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }) + ' г.';
+            }
+
+            // Функция для фильтрации людей по фамилии
+            function filterIndividualsByFamily(familyName) {
+                if (!familyName.trim()) {
+                    return familyData.individuals;
+                }
+                
+                const searchTerm = familyName.toLowerCase().trim();
+                return familyData.individuals.filter(person => {
+                    const surname = (person.nameParts?.surname || person.name?.surname || '').toLowerCase();
+                    const marriedSurname = (person.nameParts?.marriedSurname || '').toLowerCase();
+                    return surname.includes(searchTerm) || marriedSurname.includes(searchTerm);
+                });
+            }
+
+            // Функция для получения событий на определённую дату
+            function getEventsForDate(date) {
+                const events = [];
+                const addedMarriageFamilies = new Set();
+
+                // Используем отфильтрованный список людей
+                const peopleToCheck = currentFamilyFilter ? filteredIndividuals : familyData.individuals;
+                
+                peopleToCheck.forEach(person => {
+                    // Событие рождения
+                    if (person.birth && person.birth.date) {
+                        try {
+                            const originalBirthDate = new Date(parseGedcomDate(person.birth.date));
+                            if (!isNaN(originalBirthDate.getTime())) {
+                                // Преобразуем дату в соответствии с выбранным календарем
+                                const displayBirthDate = convertDateForDisplay(originalBirthDate, currentSystem);
+                                
+                                if (displayBirthDate.getMonth() === date.getMonth() && displayBirthDate.getDate() === date.getDate()) {
+                                    events.push({
+                                        type: 'birth',
+                                        name: person.name.full,
+                                        nameParts: person.nameParts,
+                                        id: person.id,
+                                        date: originalBirthDate,
+                                        displayDate: displayBirthDate
+                                    });
+                                }
+                            }
+                        } catch (error) {
+                            console.warn('Ошибка парсинга даты рождения для', person.name.full, ':', person.birth.date);
+                        }
+                    }
+                    
+                    // Событие смерти
+                    if (person.death && person.death.date) {
+                        try {
+                            const originalDeathDate = new Date(parseGedcomDate(person.death.date));
+                            if (!isNaN(originalDeathDate.getTime())) {
+                                // Преобразуем дату в соответствии с выбранным календарем
+                                const displayDeathDate = convertDateForDisplay(originalDeathDate, currentSystem);
+                                
+                                if (displayDeathDate.getMonth() === date.getMonth() && displayDeathDate.getDate() === date.getDate()) {
+                                    events.push({
+                                        type: 'death',
+                                        name: person.name.full,
+                                        nameParts: person.nameParts,
+                                        id: person.id,
+                                        date: originalDeathDate,
+                                        displayDate: displayDeathDate
+                                    });
+                                }
+                            }
+                        } catch (error) {
+                            console.warn('Ошибка парсинга даты смерти для', person.name.full, ':', person.death.date);
+                        }
+                    }
+
+                    // Годовщина брака
+                    if (Array.isArray(person.marriages)) {
+                        person.marriages.forEach(m => {
+                            if (!m || !m.date) return;
+                            try {
+                                const originalMarrDate = new Date(parseGedcomDate(m.date));
+                                if (!isNaN(originalMarrDate.getTime())) {
+                                    // Преобразуем дату в соответствии с выбранным календарем
+                                    const displayMarrDate = convertDateForDisplay(originalMarrDate, currentSystem);
+                                    
+                                    if (displayMarrDate.getMonth() === date.getMonth() && displayMarrDate.getDate() === date.getDate()) {
+                                        // Избегаем дублей: добавляем по familyId один раз на день
+                                        const famKey = m.familyId || `${person.id}-${m.spouseId || ''}`;
+                                        if (!addedMarriageFamilies.has(famKey)) {
+                                            addedMarriageFamilies.add(famKey);
+                                            events.push({
+                                                type: 'marriage',
+                                                name: person.name.full,
+                                                nameParts: person.nameParts,
+                                                id: person.id,
+                                                date: originalMarrDate,
+                                                displayDate: displayMarrDate,
+                                                familyId: m.familyId || null,
+                                                spouseId: m.spouseId || null
+                                            });
+                                        }
+                                    }
+                                }
+                            } catch (error) {
+                                console.warn('Ошибка парсинга даты брака для', person.name.full, ':', m.date);
+                            }
+                        });
+                    }
+                });
+                return events;
+            }
+
+            // Рендер календаря
+            function renderCalendar() {
+                calendarEl.innerHTML = '';
+                calendarEl.className = 'cal-grid';
+
+                if (currentView === 'month') {
+                    renderMonthView();
+                } else if (currentView === 'week') {
+                    renderWeekView();
+                } else if (currentView === 'year') {
+                    renderYearView();
+                }
+
+                attachCellListeners();
+            }
+
+            // Рендер вида "Месяц"
+            function renderMonthView() {
+                const monthContainer = document.createElement('div');
+                monthContainer.className = 'cal-month-container';
+                
+                // Добавляем информацию о календаре в заголовок
+                const calendarType = currentSystem === 'julian' ? ' (юлианский)' : ' (григорианский)';
+                titleEl.textContent = `${months[currentDate.getMonth()]} ${currentDate.getFullYear()}${calendarType}`;
+
+                const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+                const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+                const prevLastDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 0);
+                const nextFirstDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+                
+                // Определяем первый день недели (понедельник = 1)
+                const firstDayOfWeek = firstDay.getDay() === 0 ? 7 : firstDay.getDay();
+                
+                // Создаем заголовки дней недели
+                const weekdaysHeader = document.createElement('div');
+                weekdaysHeader.className = 'cal-weekdays';
+                weekdays.forEach(day => {
+                    const dayHeader = document.createElement('div');
+                    dayHeader.className = 'cal-weekday';
+                    dayHeader.textContent = day;
+                    weekdaysHeader.appendChild(dayHeader);
+                });
+                monthContainer.appendChild(weekdaysHeader);
+
+                // Создаем сетку дней
+                const daysGrid = document.createElement('div');
+                daysGrid.className = 'cal-month-grid';
+                
+                // Добавляем дни предыдущего месяца
+                for (let i = firstDayOfWeek - 2; i >= 0; i--) {
+                    const prevDate = new Date(prevLastDay);
+                    prevDate.setDate(prevLastDay.getDate() - i);
+                    const dayCell = createDayCell(prevDate, true, false);
+                    daysGrid.appendChild(dayCell);
+                }
+
+                // Добавляем дни текущего месяца
+                for (let day = 1; day <= lastDay.getDate(); day++) {
+                    const currentDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+                    const isToday = isSameDay(currentDay, new Date());
+                    const dayCell = createDayCell(currentDay, false, isToday);
+                    daysGrid.appendChild(dayCell);
+                }
+
+                // Добавляем дни следующего месяца для заполнения сетки
+                const totalCells = daysGrid.children.length;
+                const remainingCells = (Math.ceil(totalCells / 7) * 7) - totalCells;
+                for (let day = 1; day <= remainingCells && remainingCells < 7; day++) {
+                    const nextDate = new Date(nextFirstDay);
+                    nextDate.setDate(day);
+                    const dayCell = createDayCell(nextDate, true, false);
+                    daysGrid.appendChild(dayCell);
+                }
+                
+                monthContainer.appendChild(daysGrid);
+                calendarEl.appendChild(monthContainer);
+            }
+            
+            // Функция для создания ячейки дня
+            function createDayCell(date, isOtherMonth, isToday) {
+                const dayCell = document.createElement('div');
+                dayCell.className = 'cal-cell';
+                dayCell.dataset.date = date.toDateString();
+                
+                // Добавляем класс для выходных
+                const dayOfWeek = date.getDay();
+                if (dayOfWeek === 0 || dayOfWeek === 6) {
+                    dayCell.classList.add('weekend');
+                }
+                
+                // Создаем элемент даты
+                const dateEl = document.createElement('div');
+                dateEl.className = 'cal-date';
+                if (isOtherMonth) dateEl.classList.add('other-month');
+                if (isToday) dateEl.classList.add('today');
+                dateEl.textContent = date.getDate();
+                dayCell.appendChild(dateEl);
+
+                // Добавляем события только для дней текущего месяца
+                if (!isOtherMonth) {
+                    const events = getEventsForDate(date);
+                    events.forEach(event => {
+                        const eventEl = document.createElement('div');
+                        let eventClass = 'cal-event';
+                        if (event.type === 'death') {
+                            eventClass += ' death';
+                        } else if (event.type === 'marriage') {
+                            eventClass += ' marriage'; // Добавляем класс для бракосочетаний
+                        }
+                        eventEl.className = eventClass;
+                        eventEl.dataset.personId = event.id;
+                        const label = getEventLabel(event, date);
+                        
+                        // Показываем дату события в соответствии с выбранным календарем
+                        const displayDate = event.displayDate || event.date;
+                        const originalDate = event.date || event.displayDate;
+                        const calendarNote = currentSystem === 'julian' ? 'юл.' : 'григ.';
+                        
+                        eventEl.innerHTML = `
+                            <strong>${event.nameParts?.given || ''} ${event.nameParts?.surname || event.nameParts?.marriedSurname || ''}</strong><br>
+                            <small>${label}</small>
+                        `;
+                        eventEl.title = `${formatDateRu(originalDate)} (оригинал) → ${formatDateRu(displayDate)} (${calendarNote})`;
+                        dayCell.appendChild(eventEl);
+                    });
+                }
+                
+                return dayCell;
+            }
+            
+            // Функция для проверки одинаковых дат
+            function isSameDay(date1, date2) {
+                return date1.getDate() === date2.getDate() &&
+                       date1.getMonth() === date2.getMonth() &&
+                       date1.getFullYear() === date2.getFullYear();
+            }
+
+            // Рендер вида "Неделя"
+            function renderWeekView() {
+                const weekContainer = document.createElement('div');
+                weekContainer.className = 'cal-month-container';
+                
+                const startOfWeek = new Date(currentDate);
+                const day = startOfWeek.getDay();
+                const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
+                startOfWeek.setDate(diff);
+
+                const endOfWeek = new Date(startOfWeek);
+                endOfWeek.setDate(startOfWeek.getDate() + 6);
+                const calendarType = currentSystem === 'julian' ? ' (юлианский)' : ' (григорианский)';
+                titleEl.textContent = `${startOfWeek.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })} – ${endOfWeek.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}${calendarType}`;
+                
+                // Создаем заголовки дней недели
+                const weekdaysHeader = document.createElement('div');
+                weekdaysHeader.className = 'cal-weekdays';
+                for (let i = 0; i < 7; i++) {
+                    const currentDay = new Date(startOfWeek);
+                    currentDay.setDate(startOfWeek.getDate() + i);
+                    const dayHeader = document.createElement('div');
+                    dayHeader.className = 'cal-weekday';
+                    dayHeader.innerHTML = `
+                        <div>${weekdays[i]}</div>
+                        <div style="font-size: 18px; font-weight: 800;">${currentDay.getDate()}</div>
+                        <div style="font-size: 12px; opacity: 0.8;">${months[currentDay.getMonth()]}</div>
+                    `;
+                    weekdaysHeader.appendChild(dayHeader);
+                }
+                weekContainer.appendChild(weekdaysHeader);
+                
+                // Создаем сетку дней
+                const daysGrid = document.createElement('div');
+                daysGrid.className = 'cal-week-grid';
+                
+                for (let i = 0; i < 7; i++) {
+                    const dayDate = new Date(startOfWeek);
+                    dayDate.setDate(startOfWeek.getDate() + i);
+                    const isToday = isSameDay(dayDate, new Date());
+                    const dayCol = createDayCell(dayDate, false, isToday);
+                    dayCol.className = 'cal-day-col';
+                    
+                    // Убираем дату сверху, так как она уже в заголовке
+                    const dateEl = dayCol.querySelector('.cal-date');
+                    if (dateEl) dateEl.style.display = 'none';
+                    
+                    daysGrid.appendChild(dayCol);
+                }
+                
+                weekContainer.appendChild(daysGrid);
+                calendarEl.appendChild(weekContainer);
+            }
+
+            // Рендер вида "День"
+            function renderDayView() {
+                calendarEl.classList.remove('cal-month-grid', 'cal-week-grid', 'cal-year-grid');
+                titleEl.textContent = currentDate.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+                const dayContainer = document.createElement('div');
+                dayContainer.className = 'cal-month-container';
+                dayContainer.style.maxWidth = '600px';
+                dayContainer.style.margin = '0 auto';
+                
+                const dayCol = document.createElement('div');
+                dayCol.className = 'cal-day-col';
+                dayCol.style.minHeight = '300px';
+                dayCol.style.padding = '20px';
+                dayCol.dataset.date = currentDate.toDateString();
+                
+                const events = getEventsForDate(currentDate);
+
+                if (events.length > 0) {
+                    const eventsTitle = document.createElement('h3');
+                    eventsTitle.textContent = 'События на этот день:';
+                    eventsTitle.style.marginBottom = '16px';
+                    eventsTitle.style.color = 'var(--primary)';
+                    dayCol.appendChild(eventsTitle);
+                    
+                    events.forEach(event => {
+                        const eventEl = document.createElement('div');
+                        eventEl.className = `cal-event ${event.type === 'death' ? 'death' : ''}`;
+                        eventEl.style.padding = '12px 16px';
+                        eventEl.style.marginBottom = '12px';
+                        eventEl.style.fontSize = '16px';
+                        eventEl.dataset.personId = event.id;
+                        const label = getEventLabel(event, currentDate);
+                        eventEl.innerHTML = `
+                            <strong style="font-size: 18px;">${event.name}</strong><br>
+                            <span style="color: var(--muted);">${label}</span>
+                        `;
+                        dayCol.appendChild(eventEl);
+                    });
+                } else {
+                    dayCol.innerHTML = `
+                        <div style="text-align: center; padding: 40px; color: var(--muted);">
+                            <div style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;">📅</div>
+                            <div style="font-size: 18px; margin-bottom: 8px;">На этот день событий нет</div>
+                            <div class="cal-note">Попробуйте выбрать другую дату или посмотреть месячный календарь</div>
+                        </div>
+                    `;
+                }
+                
+                dayContainer.appendChild(dayCol);
+                calendarEl.appendChild(dayContainer);
+            }
+            
+            // Рендер вида "Год"
+            function renderYearView() {
+                calendarEl.classList.add('cal-year-grid');
+                const filterText = currentFamilyFilter ? ` (фамилия: ${currentFamilyFilter})` : '';
+                const calendarType = currentSystem === 'julian' ? ' (юлианский)' : ' (григорианский)';
+                titleEl.textContent = `События ${currentDate.getFullYear()} года${calendarType}${filterText}`;
+
+                const eventsByMonth = Array.from({ length: 12 }, () => []);
+                const firstDayOfYear = new Date(currentDate.getFullYear(), 0, 1);
+                
+                // Собираем все события за год
+                for (let month = 0; month < 12; month++) {
+                    const daysInMonth = new Date(currentDate.getFullYear(), month + 1, 0).getDate();
+                    for (let day = 1; day <= daysInMonth; day++) {
+                        const dayDate = new Date(currentDate.getFullYear(), month, day);
+                        const events = getEventsForDate(dayDate);
+                        events.forEach(event => {
+                            eventsByMonth[month].push({
+                                ...event,
+                                day: day
+                            });
+                        });
+                    }
+                }
+                
+                eventsByMonth.forEach((events, index) => {
+                    const monthCard = document.createElement('div');
+                    monthCard.className = 'cal-cell';
+                    monthCard.style.minHeight = '200px';
+                    monthCard.innerHTML = `
+                        <div class="cal-date" style="font-size: 18px; margin-bottom: 12px; text-align: center; color: var(--primary);">${months[index]}</div>
+                    `;
+                    
+                    if (events.length > 0) {
+                        events.forEach(event => {
+                            const eventEl = document.createElement('div');
+                            let eventClass = 'cal-event';
+                            if (event.type === 'death') {
+                                eventClass += ' death';
+                            } else if (event.type === 'marriage') {
+                                eventClass += ' marriage';
+                            }
+                            eventEl.className = eventClass;
+                            eventEl.dataset.personId = event.id;
+                            
+                            const calendarNote = currentSystem === 'julian' ? 'юл.' : 'григ.';
+                            const displayDate = event.displayDate || event.date;
+                            
+                            const dayDate = new Date(currentDate.getFullYear(), index, event.day);
+                            const label = getEventLabel(event, dayDate);
+                            
+                            eventEl.innerHTML = `
+                                <strong>${event.day} числа</strong><br>
+                                <span>${event.name}</span><br>
+                                <small>${label}</small>
+                            `;
+                            eventEl.title = `${formatDateRu(event.date)} → ${formatDateRu(displayDate)} (${calendarNote})`;
+                            monthCard.appendChild(eventEl);
+                        });
+                    } else {
+                        monthCard.innerHTML += `<div class="cal-note">Нет событий</div>`;
+                    }
+                    calendarEl.appendChild(monthCard);
+                });
+            }
+
+            // Функция для получения уникальных фамилий
+            function getUniqueFamilyNames() {
+                const familyNames = new Map();
+                familyData.individuals.forEach(person => {
+                    const surname = person.nameParts?.surname || person.name?.surname || '';
+                    const marriedSurname = person.nameParts?.marriedSurname || '';
+                    
+                    if (surname) {
+                        familyNames.set(surname, (familyNames.get(surname) || 0) + 1);
+                    }
+                    if (marriedSurname && marriedSurname !== surname) {
+                        familyNames.set(marriedSurname, (familyNames.get(marriedSurname) || 0) + 1);
+                    }
+                });
+                return Array.from(familyNames.entries()).sort((a, b) => b[1] - a[1]);
+            }
+
+            // Функция для показа автодополнения
+            function showAutocomplete(query) {
+                const suggestionsEl = document.getElementById('autocomplete-suggestions');
+                if (!query.trim()) {
+                    suggestionsEl.style.display = 'none';
+                    return;
+                }
+                
+                const familyNames = getUniqueFamilyNames();
+                const matches = familyNames.filter(([name]) => 
+                    name.toLowerCase().includes(query.toLowerCase())
+                ).slice(0, 8);
+                
+                if (matches.length === 0) {
+                    suggestionsEl.style.display = 'none';
+                    return;
+                }
+                
+                suggestionsEl.innerHTML = matches.map(([name, count]) => 
+                    `<div class="autocomplete-item" data-family="${name}">
+                        ${name}<span class="family-count">(${count} чел.)</span>
+                    </div>`
+                ).join('');
+                
+                suggestionsEl.style.display = 'block';
+                
+                // Добавляем обработчики кликов
+                suggestionsEl.querySelectorAll('.autocomplete-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        const familyName = item.dataset.family;
+                        familySearchInput.value = familyName;
+                        suggestionsEl.style.display = 'none';
+                        updateFamilyFilter();
+                    });
+                });
+            }
+
+            // Функция для обновления поиска по фамилии
+            function updateFamilyFilter() {
+                currentFamilyFilter = familySearchInput.value.trim();
+                if (currentFamilyFilter) {
+                    filteredIndividuals = filterIndividualsByFamily(currentFamilyFilter);
+                    statusEl.textContent = `Найдено ${filteredIndividuals.length} человек с фамилией "${currentFamilyFilter}"`;
+                    statusEl.style.color = filteredIndividuals.length > 0 ? 'var(--success)' : 'var(--danger)';
+                } else {
+                    filteredIndividuals = [];
+                    statusEl.textContent = 'Показаны все люди';
+                    statusEl.style.color = 'var(--muted)';
+                }
+                renderCalendar();
+            }
+
+            // Показ модального окна
+            function showModal(date, personId) {
+                modal.classList.add('open');
+                modalBodyEl.innerHTML = '';
+                familyTreeEl.style.display = 'none';
+                scanListEl.innerHTML = '';
+
+                const calendarType = currentSystem === 'julian' ? ' (юлианский)' : ' (григорианский)';
+                modalTitleEl.textContent = `События на ${date.toLocaleDateString('ru-RU')}${calendarType}`;
+                
+                if (personId) {
+                    displayFamilyTree(personId);
+                    modalTitleEl.textContent = `Детали о человеке`;
+                } else {
+                    const events = getEventsForDate(date);
+                    if (events.length > 0) {
+                         events.forEach(event => {
+                            const eventEl = document.createElement('div');
+                            let eventClass = 'cal-event';
+                            if (event.type === 'death') {
+                                eventClass += ' death';
+                            } else if (event.type === 'marriage') {
+                                eventClass += ' marriage';
+                            }
+                            eventEl.className = eventClass;
+                            eventEl.dataset.personId = event.id;
+                            eventEl.style.cursor = 'pointer';
+                            
+                            const displayDate = event.displayDate || event.date;
+                            const originalDate = event.date || event.displayDate;
+                            const calendarNote = currentSystem === 'julian' ? 'юл.' : 'григ.';
+                            const label = getEventLabel(event, date);
+                            
+                            eventEl.innerHTML = `
+                                <strong>${event.name}</strong><br>
+                                <small>${label}</small>
+                            `;
+                            eventEl.addEventListener('click', (e) => {
+                                e.stopPropagation();
+                                const personId = eventEl.dataset.personId;
+                                const date = new Date(eventEl.closest('.cal-cell, .cal-day-col').dataset.date);
+                                showModal(date, personId);
+                            });
+                            modalBodyEl.appendChild(eventEl);
+                        });
+                    } else {
+                        modalBodyEl.innerHTML = `<div class="cal-note">Нет событий на эту дату в выбранном календаре.</div>`;
+                    }
+                }
+            }
+
+            // Показ анкеты-древа
+            function displayFamilyTree(personId) {
+                const person = getPerson(personId);
+                if (!person) return;
+
+                familyTreeEl.style.display = 'grid';
+                document.getElementById('tree-person-name').textContent = person.name.full || 'Имя неизвестно';
+                document.getElementById('tree-birth-date').textContent = person.birth && person.birth.date ? formatGedcomToRu(person.birth.date) : 'Неизвестно';
+                document.getElementById('tree-birth-place').textContent = person.birth && person.birth.place || 'Неизвестно';
+                document.getElementById('tree-death-date').textContent = person.death && person.death.date ? formatGedcomToRu(person.death.date) : 'Неизвестно';
+                document.getElementById('tree-death-place').textContent = person.death && person.death.place || 'Неизвестно';
+                document.getElementById('tree-sex').textContent = person.sex === 'M' ? 'Мужской' : person.sex === 'F' ? 'Женский' : 'Неизвестно';
+                
+                // Дополнительные поля: части имени и метка изменения
+                // Вставим строки под уже существующими, если их нет
+                const personInfoBox = document.querySelector('#family-tree .person-info');
+                // Удаляем старые динамически добавленные строки перед добавлением новых
+                document.querySelectorAll('.dynamic-info-row').forEach(row => row.remove());
+
+                if (person.nameParts) {
+                    const np = person.nameParts;
+                    const ensureRow = (label, value) => {
+                        if (!value || value === '-') return; // Не добавляем строку, если значение отсутствует или равно "-"
+                        const row = document.createElement('div');
+                        row.className = 'info-row dynamic-info-row';
+                        row.innerHTML = `<span class="info-label">${label}:</span><span class="info-value">${value}</span>`;
+                        personInfoBox.appendChild(row);
+                    };
+                    ensureRow('Имя', np.given);
+                    ensureRow('Фамилия', np.surname);
+                    ensureRow('Отчество', np.patronymic);
+                    ensureRow('Фамилия (замуж.)', np.marriedSurname);
+                }
+                if (person.changedAt) {
+                        const row = document.createElement('div');
+                    row.className = 'info-row dynamic-info-row';
+                    row.innerHTML = `<span class="info-label">Изменено:</span><span class="info-value">${person.changedAt}</span>`;
+                        personInfoBox.appendChild(row);
+                }
+                
+                const relationsEl = document.getElementById('tree-relations');
+                relationsEl.innerHTML = '';
+
+                // Добавляем супругов
+                const spouses = getSpousesForPerson(personId);
+                spouses.forEach(spouse => {
+                    const relItem = document.createElement('div');
+                    relItem.className = 'relation-item';
+                    const years = lifeYearsSpan(spouse);
+                    relItem.innerHTML = `
+                        <div class="relation-type">Супруг(а)</div>
+                        <div class="relation-details">${spouse.nameParts.given || ''} ${spouse.nameParts.patronymic || ''} ${spouse.nameParts.surname || spouse.nameParts.marriedSurname || ''}${years}</div>
+                    `;
+                    relItem.dataset.personId = spouse.id;
+                    relationsEl.appendChild(relItem);
+                });
+
+                // Добавляем родителей
+                getParents(personId).forEach(parent => {
+                    const relItem = document.createElement('div');
+                    relItem.className = 'relation-item';
+                    const years = lifeYearsSpan(parent);
+                    relItem.innerHTML = `
+                        <div class="relation-type">${parent.sex === 'M' ? 'Отец' : 'Мать'}</div>
+                        <div class="relation-details">${parent.nameParts.given || ''} ${parent.nameParts.patronymic || ''} ${parent.nameParts.surname || parent.nameParts.marriedSurname || ''}${years}</div>
+                    `;
+                    relItem.dataset.personId = parent.id;
+                    relationsEl.appendChild(relItem);
+                });
+
+                // Добавляем детей
+                getChildren(personId).forEach(child => {
+                            const relItem = document.createElement('div');
+                            relItem.className = 'relation-item';
+                    const years = lifeYearsSpan(child);
+                            relItem.innerHTML = `
+                        <div class="relation-type">Ребенок</div>
+                        <div class="relation-details">${child.nameParts.given || ''} ${child.nameParts.patronymic || ''} ${child.nameParts.surname || child.nameParts.marriedSurname || ''}${years}</div>
+                            `;
+                    relItem.dataset.personId = child.id;
+                            relationsEl.appendChild(relItem);
+                });
+
+                // Загрузка сканов (до 2 плиток как на скриншоте)
+                scanListEl.innerHTML = '';
+                const scans = (familyData.scans && familyData.scans[personId]) ? familyData.scans[personId] : [];
+                const maxTiles = 2;
+                const tiles = scans.slice(0, maxTiles);
+
+                for (let i = 0; i < maxTiles; i++) {
+                    const scanData = tiles[i];
+                    const scanUrl = typeof scanData === 'string' ? scanData : scanData?.path;
+                    const tile = document.createElement('div');
+                    tile.className = 'scan-tile';
+
+                    if (scanUrl) {
+                        const ext = scanUrl.split('.').pop().toLowerCase();
+                        const renderable = ['jpg','jpeg','png','webp'].includes(ext);
+                        if (renderable) {
+                            tile.innerHTML = `
+                                <img class="scan-thumb" src="${scanUrl}" alt="Скан ${i+1}" title="Открыть скан">
+                                <div class="scan-caption">Скан ${i+1}</div>
+                            `;
+                            tile.querySelector('img').addEventListener('click', () => window.open(scanUrl, '_blank'));
+                        } else {
+                            tile.innerHTML = `
+                                <div class="scan-empty">Нет фото</div>
+                                <div class="scan-caption">Скан ${i+1}</div>
+                            `;
+                            tile.addEventListener('click', () => window.open(scanUrl, '_blank'));
+                            tile.style.cursor = 'pointer';
+                            tile.title = 'Формат не поддерживается для предпросмотра (например, TIFF). Нажмите, чтобы открыть.';
+                        }
+                    } else {
+                        tile.innerHTML = `
+                            <div class="scan-empty">Нет документа</div>
+                            <div class="scan-caption">Документ ${i+1}</div>
+                        `;
+                    }
+                    scanListEl.appendChild(tile);
+                }
+
+                // Документы (OBJE) — список
+                // Создадим секцию ниже сканов: если у человека есть objects и они есть в familyData.objects
+                const personObjects = Array.isArray(person.objects) ? person.objects : [];
+                const objectsDict = familyData.objects || {};
+                if (personObjects.length > 0) {
+                    // Контейнер под списком документов
+                    let docsSection = document.getElementById('docs-section');
+                    if (!docsSection) {
+                        docsSection = document.createElement('div');
+                        docsSection.className = 'info-section documents-info';
+                        docsSection.id = 'docs-section';
+                        docsSection.innerHTML = '<h3>Документы</h3><ul id="docs-list"></ul>';
+                        // Вставляем перед блоком семейных связей
+                        const treeContainer = document.getElementById('family-tree');
+                        treeContainer.insertBefore(docsSection, treeContainer.lastElementChild);
+                    }
+                    const list = docsSection.querySelector('#docs-list');
+                    list.innerHTML = '';
+                    personObjects.forEach(ref => {
+                        const o = objectsDict[ref.id];
+                        if (!o) return;
+                        const li = document.createElement('li');
+                        const title = o.title || 'Без названия';
+                        let href = o.file || '';
+                        // Если путь не абсолютный URL, сделаем относительный к папке документов
+                        if (href && !/^https?:\/\//i.test(href)) {
+                            href = (CONFIG.DOCUMENTS_DIRECTORY || './documents/') + href.replace(/^\/+/, '');
+                        }
+                        li.innerHTML = href
+                            ? `<a href="${href}" target="_blank" rel="noopener">${title}</a>`
+                            : `<span>${title}</span>`;
+                        list.appendChild(li);
+                    });
+                }
+
+                // Привязка обработчиков к новым элементам
+                relationsEl.querySelectorAll('.relation-item').forEach(item => {
+                    item.addEventListener('click', (e) => {
+                        const newPersonId = e.currentTarget.dataset.personId;
+                        if (newPersonId) {
+                            displayFamilyTree(newPersonId);
+                        }
+                    });
+                });
+            }
+
+            // Прикрепление обработчиков событий к ячейкам
+            function attachCellListeners() {
+                document.querySelectorAll('.cal-cell, .cal-day-col').forEach(cell => {
+                    cell.addEventListener('click', () => {
+                        const date = new Date(cell.dataset.date);
+                        showModal(date);
+                    });
+                });
+                document.querySelectorAll('.cal-event').forEach(eventEl => {
+                     eventEl.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const personId = eventEl.dataset.personId;
+                        const date = new Date(eventEl.closest('.cal-cell, .cal-day-col').dataset.date);
+                        showModal(date, personId);
+                    });
+                });
+            }
+
+            // Обработчики кнопок навигации
+            prevBtn.addEventListener('click', () => {
+                if (currentView === 'month') {
+                    currentDate.setMonth(currentDate.getMonth() - 1);
+                } else if (currentView === 'week') {
+                    currentDate.setDate(currentDate.getDate() - 7);
+                } else if (currentView === 'year') {
+                    currentDate.setFullYear(currentDate.getFullYear() - 1);
+                }
+                updateDateInput();
+                renderCalendar();
+            });
+
+            nextBtn.addEventListener('click', () => {
+                if (currentView === 'month') {
+                    currentDate.setMonth(currentDate.getMonth() + 1);
+                } else if (currentView === 'week') {
+                    currentDate.setDate(currentDate.getDate() + 7);
+                } else if (currentView === 'year') {
+                    currentDate.setFullYear(currentDate.getFullYear() + 1);
+                }
+                updateDateInput();
+                renderCalendar();
+            });
+
+            todayBtn.addEventListener('click', () => {
+                currentDate = new Date();
+                updateDateInput();
+                renderCalendar();
+            });
+            
+            // Функция для обновления поля ввода даты
+            function updateDateInput() {
+                currentDateInput.value = currentDate.toISOString().split('T')[0];
+            }
+
+            // Обработчики изменений в выпадающих списках и радиокнопках
+            viewSelect.addEventListener('change', (e) => {
+                currentView = e.target.value;
+                renderCalendar();
+            });
+
+            calSystemRadios.forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    currentSystem = e.target.value;
+                    console.log('Календарь изменен на:', currentSystem);
+                    renderCalendar();
+                });
+            });
+
+            currentDateInput.addEventListener('change', (e) => {
+                currentDate = new Date(e.target.value);
+                renderCalendar();
+            });
+
+            // Обработчики поиска по фамилии
+            familySearchInput.addEventListener('input', (e) => {
+                const query = e.target.value;
+                showAutocomplete(query);
+                if (query.trim()) {
+                    updateFamilyFilter();
+                } else {
+                    clearFamilyFilter();
+                }
+            });
+            
+            // Функция для очистки фильтра
+            function clearFamilyFilter() {
+                currentFamilyFilter = '';
+                filteredIndividuals = [];
+                statusEl.textContent = 'Показаны все люди';
+                statusEl.style.color = 'var(--muted)';
+                document.getElementById('autocomplete-suggestions').style.display = 'none';
+                renderCalendar();
+            }
+            
+            familySearchInput.addEventListener('keydown', (e) => {
+                const suggestionsEl = document.getElementById('autocomplete-suggestions');
+                const items = suggestionsEl.querySelectorAll('.autocomplete-item');
+                let selectedIndex = Array.from(items).findIndex(item => item.classList.contains('selected'));
+                
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (selectedIndex < items.length - 1) {
+                        if (selectedIndex >= 0) items[selectedIndex].classList.remove('selected');
+                        selectedIndex++;
+                        items[selectedIndex].classList.add('selected');
+                    }
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (selectedIndex > 0) {
+                        items[selectedIndex].classList.remove('selected');
+                        selectedIndex--;
+                        items[selectedIndex].classList.add('selected');
+                    }
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (selectedIndex >= 0) {
+                        // Выбираем предложенную фамилию
+                        const familyName = items[selectedIndex].dataset.family;
+                        familySearchInput.value = familyName;
+                        suggestionsEl.style.display = 'none';
+                        updateFamilyFilter();
+                    } else {
+                        // Если ничего не выбрано, но есть текст - ищем по введенному тексту
+                        const query = familySearchInput.value.trim();
+                        if (query) {
+                            suggestionsEl.style.display = 'none';
+                            updateFamilyFilter();
+                            // Показываем уведомление о результатах поиска
+                            setTimeout(() => {
+                                if (filteredIndividuals.length === 0) {
+                                    showErrorNotification(`Фамилия "${query}" не найдена`);
+                                } else {
+                                    showSuccessNotification(`Найдено ${filteredIndividuals.length} человек с фамилией "${query}"`);
+                                }
+                            }, 100);
+                        } else {
+                            clearFamilyFilter();
+                        }
+                    }
+                } else if (e.key === 'Escape') {
+                    suggestionsEl.style.display = 'none';
+                    if (!familySearchInput.value.trim()) {
+                        clearFamilyFilter();
+                    }
+                }
+            });
+            
+            familySearchInput.addEventListener('blur', (e) => {
+                // Задержка для обработки кликов по автодополнению
+                setTimeout(() => {
+                    document.getElementById('autocomplete-suggestions').style.display = 'none';
+                }, 200);
+            });
+            
+            familySearchInput.addEventListener('focus', (e) => {
+                if (e.target.value.trim()) {
+                    showAutocomplete(e.target.value);
+                }
+            });
+
+            // Обработчик для кнопки "Открыть календарь"
+            ctaStartBtn.addEventListener('click', () => {
+                document.getElementById('family-calendar').scrollIntoView({ behavior: 'smooth' });
+            });
+
+            // Обработчик для модального окна
+            modalCloseBtn.addEventListener('click', () => {
+                modal.classList.remove('open');
+            });
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('open');
+                }
+            });
+
+            // Система уведомлений
+            const enableNotifyBtn = document.getElementById('enable-notify');
+            const ownerEmailInput = document.getElementById('owner-email');
+            
+            // Обработчик подписки на уведомления
+            enableNotifyBtn.addEventListener('click', async () => {
+                const email = ownerEmailInput.value.trim();
+                
+                if (!email) {
+                    showErrorNotification('Введите email для подписки');
+                    return;
+                }
+                
+                if (!isValidEmail(email)) {
+                    showErrorNotification('Введите корректный email адрес');
+                    return;
+                }
+                
+                try {
+                    enableNotifyBtn.disabled = true;
+                    enableNotifyBtn.textContent = 'Подписываемся...';
+                    
+                    const response = await fetch('/api/subscribe', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            email: email,
+                            days_before: 1,
+                            notification_time: '09:00'
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        showSuccessNotification('Подписка успешно создана! Уведомления будут приходить автоматически.');
+                    } else {
+                        showErrorNotification(result.error || 'Ошибка подписки');
+                    }
+                    
+                } catch (error) {
+                    console.error('Ошибка подписки:', error);
+                    showErrorNotification('Ошибка подключения к серверу');
+                } finally {
+                    enableNotifyBtn.disabled = false;
+                    enableNotifyBtn.textContent = 'Подписаться на напоминания';
+                }
+            });
+            
+            // Функция проверки email
+            function isValidEmail(email) {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                return emailRegex.test(email);
+            }
+            
+            
+            
+            // Функция тестирования уведомлений
+            window.testNotification = async function() {
+                const email = ownerEmailInput.value.trim();
+                
+                if (!email) {
+                    showErrorNotification('Сначала введите email и подпишитесь');
+                    return;
+                }
+                
+                try {
+                    const response = await fetch('/api/test-notification', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            email: email
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        showSuccessNotification('Тестовое уведомление отправлено! Проверьте почту.');
+                    } else {
+                        showErrorNotification(result.error || 'Ошибка отправки тестового уведомления');
+                    }
+                    
+                } catch (error) {
+                    console.error('Ошибка тестирования:', error);
+                    showErrorNotification('Ошибка подключения к серверу');
+                }
+            };
+            
+            // Функции для показа уведомлений
+            function showErrorNotification(message) {
+                showNotification(message, 'error');
+            }
+            
+            // Функция для показа успешных уведомлений
+            function showSuccessNotification(message) {
+                showNotification(message, 'success');
+            }
+            
+            // Универсальная функция для показа уведомлений
+            function showNotification(message, type = 'error') {
+                const notification = document.createElement('div');
+                notification.className = `notification ${type}`;
+                notification.textContent = message;
+                
+                const bgColor = type === 'success' ? 'var(--success)' : 'var(--danger)';
+                notification.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: ${bgColor};
+                    color: white;
+                    padding: 12px 20px;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                    z-index: 10000;
+                    font-weight: 600;
+                    max-width: 400px;
+                    opacity: 0;
+                    transform: translateX(100%);
+                    transition: all 0.3s ease;
+                `;
+                document.body.appendChild(notification);
+                
+                // Анимация появления
+                setTimeout(() => {
+                    notification.style.opacity = '1';
+                    notification.style.transform = 'translateX(0)';
+                }, 10);
+                
+                // Автоматическое скрытие
+                setTimeout(() => {
+                    notification.style.opacity = '0';
+                    notification.style.transform = 'translateX(100%)';
+                    setTimeout(() => {
+                        if (notification.parentNode) {
+                            notification.parentNode.removeChild(notification);
+                        }
+                    }, 300);
+                }, type === 'success' ? 3000 : 5000);
+            }
+
+            // Инициализация приложения
+            async function initializeApp() {
+                console.log('Инициализация приложения...');
+                
+                // Проверяем наличие данных
+                if (!familyData || !familyData.individuals) {
+                    showErrorNotification('Ошибка: Нет данных для отображения');
+                    return;
+                }
+                
+                console.log('Загружено людей:', familyData.individuals.length);
+                
+                // Инициализируем сканы
+                if (!familyData.scans) {
+                    familyData.scans = {};
+                }
+                
+                // Рендерим календарь
+                renderCalendar();
+                
+                // Обновляем интерфейс
+                updateDateInput();
+                
+                console.log('Приложение инициализировано.');
+                console.log('Доступно людей для поиска:', familyData.individuals.length);
+            }
+
+            // Запуск инициализации при загрузке страницы
+            document.addEventListener('DOMContentLoaded', () => {
+                // Проверяем, что все DOM элементы загружены
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', initializeApp);
+                } else {
+                    initializeApp();
+                }
+            });
+
+            // Reveal on scroll logic
+            const reveals = document.querySelectorAll('.reveal');
+            const revealOnScroll = () => {
+                const windowHeight = window.innerHeight;
+                reveals.forEach(el => {
+                    const elTop = el.getBoundingClientRect().top;
+                    const elVisible = 150;
+                    if (elTop < windowHeight - elVisible) {
+                        el.classList.add('in');
+                    }
+                });
+            };
+            window.addEventListener('scroll', revealOnScroll);
+            revealOnScroll(); // Initial check on load
+            
+            // Делаем функцию displayFamilyTree глобальной для использования в поиске
+            window.displayFamilyTree = displayFamilyTree;
+        });
+    </script>
+</body>
+</html>
